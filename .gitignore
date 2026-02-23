@@ -1,0 +1,14 @@
+/target/*
+!/target/release/
+/target/release/*
+!/target/release/untitled_bandit.exe
+!/target/prototypes
+/doc/
+
+*.un~
+*.swp
+*.*~
+/dbg.txt
+/idea.txt
+sus.txt
+Session.vim
