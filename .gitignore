@@ -8,7 +8,7 @@
 *.un~
 *.swp
 *.*~
-/dbg.txt
-/idea.txt
+dbg.txt
+idea.txt
 sus.txt
 Session.vim

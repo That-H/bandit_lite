@@ -23,6 +23,11 @@ pub mod display;
 
 pub mod beam;
 
+pub mod entity;
+pub use entity::Ent;
+
+pub mod port;
+
 /// A single tile that may or may not block movement.
 #[derive(Clone, Debug)]
 pub struct Tile {
@@ -68,111 +73,6 @@ impl bn::Tile for Tile {
         self.ch.clone()
     }
 }
-
-/// Encodes the behaviour of an entity.
-#[derive(Clone, Debug, PartialEq)]
-pub enum EntType {
-    /// Is the player.
-    Player,
-    /// Fires a coloured laser beam in the given direction.
-    Laser(beam::Beam),
-}
-
-/// A movable object in a game.
-#[derive(Clone, Debug)]
-pub struct Ent {
-    /// The character used to represent this entity.
-    pub ch: StyleCh,
-    /// Way in which this entity behaves.
-    pub tp: EntType,
-    /// Whether or not this entity has been updated yet.
-    pub updated: bool,
-}
-
-impl Ent {
-    /// Create an entity that is the player.
-    pub fn player() -> Self {
-        Self {
-            ch: '@'.white(),
-            tp: EntType::Player,
-            updated: false,
-        }
-    }
-
-    /// Create an entity that fires a laser.
-    pub fn laser(dir: Point, clr: beam::Clr) -> Self {
-        Self {
-            ch: '!'.white(),
-            tp: EntType::Laser(beam::Beam::new(clr, dir)),
-            updated: false,
-        }
-    }
-
-    /// True if this entity is the player entity.
-    pub fn is_player(&self) -> bool {
-        self.tp == EntType::Player
-    }
-
-    /// True if the player can walk on the given optional tile (false if it is None).
-    pub fn walkable(tl: &Option<&Tile>) -> bool {
-        if let Some(t) = tl && !t.blocking {
-            true
-        } else {
-            false
-        }
-    }
-}
-
-impl bn::Entity for Ent {
-    type Tile = Tile;
-    type Vfx = Vfx;
-
-    fn repr(&self) -> <<Self as bandit::Entity>::Tile as bandit::Tile>::Repr {
-        self.ch.clone()
-    }
-
-    fn update(&self, cmd: &mut bandit::Commands<'_, Self>, pos: Point)
-        where
-            Self: Sized {
-        match &self.tp {
-            EntType::Player => unsafe { 
-                let nx = PLAYER + DIR;
-                if Ent::walkable(&cmd.get_map(nx)) {
-                    // Push the entity in our way if possible.
-                    if cmd.get_ent(nx).is_some() {
-                        let nx2 = nx + DIR;
-                        // Possible if the location we would push to contains no entity and is
-                        // walkable.
-                        if Ent::walkable(&cmd.get_map(nx2)) && cmd.get_ent(nx2).is_none() {
-                            cmd.queue(bn::Cmd::new_on(nx).move_to(nx2));
-                        } else {
-                            return;
-                        }
-                    }
-                    cmd.queue(bn::Cmd::new_here().displace(DIR));
-                    PLAYER = nx;
-                }
-            },
-            EntType::Laser(bm) => {
-                bm.propagate(cmd, pos);
-            }
-        }
-        
-        // Make sure everyone knows we updated.
-        cmd.queue(bn::Cmd::new_here().modify_entity(Box::new(|e: &mut Ent| e.updated = true)));
-    }
-
-    fn priority(&self) -> u32 {
-        if self.updated {
-            0
-        } else if self.is_player() {
-            2
-        } else {
-            1
-        }
-    }
-}
-
 /// A singular frame of animation in a visual effect.
 #[derive(Clone, Debug)]
 pub enum Frame {

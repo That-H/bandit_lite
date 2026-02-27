@@ -23,11 +23,18 @@ fn main() {
         cursor::Hide,
     );
 
+    // Objects we have.
+    let objs = entity::loader::load_objs();
+
     // Map used for the game.
     let mut map = bn::Map::new(32, 32);
     map.insert_entity(Ent::player(), Point::ORIGIN);
-    map.insert_entity(Ent::laser(Point::new(1, 1), beam::Clr::Purple), Point::new(1, 0));
-    map.insert_entity(Ent::laser(Point::new(-1, 1), beam::Clr::Cyan), Point::new(-1, 0));
+    map.insert_entity(Ent::laser(Point::new(1, 0), beam::Clr::Blue), Point::new(1, 0));
+    map.insert_entity(Ent::laser(Point::new(-1, 0), beam::Clr::Red), Point::new(2, 0));
+    map.insert_entity(Ent::laser(Point::new(0, 1), beam::Clr::Red), Point::new(3, 0));
+    map.insert_entity(Ent::laser(Point::new(0, -1), beam::Clr::Green), Point::new(-1, 0));
+    map.insert_entity(objs[1].clone(), Point::new(-2, -2));
+    map.insert_entity(objs[0].clone(), Point::new(-3, -3));
 
     for y in -5..=5 {
         for x in -5..=5 {
@@ -85,6 +92,8 @@ fn main() {
         for p in to_reset {
             map.get_ent_mut(p).unwrap().updated = false;
         }
+
+        beam::INPTS.write().unwrap().clear();
     }
     
     // Put the terminal in a "normal" state in case the player actually wants to use it afterwards.
