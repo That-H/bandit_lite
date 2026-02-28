@@ -1,6 +1,6 @@
 use super::*;
 
-pub mod loader;
+const DIAG_ARROWS: [char; 8] = ['↖', '↑', '↗', '→', '↘', '↓', '↙', '←'];
 
 /// Encodes the behaviour of an entity.
 #[derive(Clone, Debug)]
@@ -11,6 +11,9 @@ pub enum EntType {
     Laser(beam::Beam),
     /// Uses its inputs to potentially create an output.
     Obj(port::PortGrp),
+    /// Takes an input of the given colour to any port. When this occurs for all of this type of
+    /// object present, the player completes the puzzle.
+    Goal(beam::Clr),
 }
 
 /// A movable object in a game.
@@ -37,8 +40,17 @@ impl Ent {
     /// Create an entity that fires a laser.
     pub fn laser(dir: Point, clr: beam::Clr) -> Self {
         Self {
-            ch: '!'.white(),
+            ch: DIAG_ARROWS[beam::port_num(-dir)].with(clr.into()),
             tp: EntType::Laser(beam::Beam::new(clr, dir)),
+            updated: false,
+        }
+    }
+
+    /// Create a goal entity.
+    pub fn goal(clr: beam::Clr) -> Self {
+        Self {
+            ch: 'O'.with(clr.into()),
+            tp: EntType::Goal(clr),
             updated: false,
         }
     }
@@ -70,6 +82,15 @@ impl Ent {
             true
         } else {
             false
+        }
+    }
+
+    /// Rotate this entity 90 degrees clockwise.
+    pub fn rotate_90(&mut self) {
+        match &mut self.tp {
+            EntType::Laser(bm) => bm.dir.rotate_90_cw_ip(),
+            EntType::Obj(pgrp) => pgrp.rotate_90(),
+            _ => (),
         }
     }
 
@@ -122,6 +143,11 @@ impl bn::Entity for Ent {
             EntType::Laser(bm) => {
                 bm.propagate(cmd, pos);
             }
+            EntType::Goal(_) => {
+                unsafe { 
+                    SHOULD_WIN = false;
+                }
+            }
             // Anyone else has nothing to worry about.
             _ => (),
         }
@@ -130,10 +156,13 @@ impl bn::Entity for Ent {
     fn priority(&self) -> u32 {
         if self.updated {
             0
-        } else if self.is_player() {
-            2
         } else {
-            1
+            match self.tp {
+                EntType::Player => 10,
+                EntType::Obj(_) => 0,
+                EntType::Laser(_) => 3,
+                EntType::Goal(_) => 2,
+            }
         }
     }
 }

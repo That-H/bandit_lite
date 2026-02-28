@@ -11,11 +11,15 @@ use io::Write;
 
 pub const TERMINAL_WID: u16 = 121;
 pub const TERMINAL_HGT: u16 = 30;
-pub const GAME_WID: u16 = 21;
-pub const GAME_HGT: u16 = 21;
+pub const GAME_WID: u16 = 20;
+pub const GAME_HGT: u16 = 20;
 
+/// Position of the player.
 pub static mut PLAYER: Point = Point::ORIGIN;
+/// Direction the player should try to move in.
 pub static mut DIR: Point = Point::ORIGIN;
+/// Whether the puzzle is complete yet or not.
+pub static mut SHOULD_WIN: bool = false;
 
 pub type StyleCh = style::StyledContent<char>;
 
@@ -27,6 +31,8 @@ pub mod entity;
 pub use entity::Ent;
 
 pub mod port;
+
+pub mod loader;
 
 /// A single tile that may or may not block movement.
 #[derive(Clone, Debug)]
@@ -41,7 +47,7 @@ pub struct Tile {
 
 impl Tile {
     /// Construct a tile with the given fields.
-    pub fn new(ch: StyleCh, blocking: bool, opaque: bool) -> Self {
+    pub const fn new(ch: StyleCh, blocking: bool, opaque: bool) -> Self {
         Self {
             ch,
             blocking,

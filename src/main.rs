@@ -4,6 +4,7 @@ use bandit_lite::*;
 use crossterm::{execute, terminal, event, style, cursor};
 use style::Stylize;
 use std::{time, io};
+use display::scenes;
 
 const GAME_POS: Point = Point::new(
     (TERMINAL_WID / 2 - GAME_WID / 2) as i32,
@@ -11,89 +12,137 @@ const GAME_POS: Point = Point::new(
 );
 
 fn main() {
-    let mut main_cont = windowed::Container::new();
-    main_cont.add_win(windowed::Window::new(GAME_POS));
+    let mut handle = io::stdout();
 
     // Raw mode required for windowed to work correctly.
     terminal::enable_raw_mode();
     execute!(
-        io::stdout(),
+        handle,
         terminal::Clear(terminal::ClearType::All),
         terminal::SetSize(TERMINAL_WID, TERMINAL_HGT),
         cursor::Hide,
     );
 
     // Objects we have.
-    let objs = entity::loader::load_objs();
-
-    // Map used for the game.
-    let mut map = bn::Map::new(32, 32);
-    map.insert_entity(Ent::player(), Point::ORIGIN);
-    map.insert_entity(Ent::laser(Point::new(1, 0), beam::Clr::Blue), Point::new(1, 0));
-    map.insert_entity(Ent::laser(Point::new(-1, 0), beam::Clr::Red), Point::new(2, 0));
-    map.insert_entity(Ent::laser(Point::new(0, 1), beam::Clr::Red), Point::new(3, 0));
-    map.insert_entity(Ent::laser(Point::new(0, -1), beam::Clr::Green), Point::new(-1, 0));
-    map.insert_entity(objs[1].clone(), Point::new(-2, -2));
-    map.insert_entity(objs[0].clone(), Point::new(-3, -3));
-
-    for y in -5..=5 {
-        for x in -5..=5 {
-            let p = Point::new(x, y);
-
-            let t = if y.abs() == 5 || x.abs() == 5 {
-                Tile::new('#'.stylize(), true, true)
-            } else {
-                Tile::new(' '.stylize(), false, false,)
-            };
-            
-            map.insert_tile(t, p);
+    let mut objs = loader::load_objs();
+    let default_tile = Tile::new('.'.white(), false, false);
+    objs.add_tile(default_tile.clone());
+    objs.add_tile(Tile::new('#'.white(), true, true));
+    objs.add_entity(Ent::player());
+    
+    // Add goals and lasers to the tile set.
+    for i in 0..8 {
+        let clr = beam::Clr::from(i);
+        objs.add_entity(Ent::goal(clr));
+        for p in 0..8 {
+            objs.add_entity(Ent::laser(beam::PORT_DIRS[p], clr));
         }
     }
 
-    'main: loop {
-        clear_events();
+    // Load puzzles in.
+    let pzls = loader::load_standard_pzls(&default_tile, &objs);
+    // Index of current puzzle in the puzzle list.
+    let mut pzl_idx = 0;
+    // Load completion state.
+    let mut completion = loader::saver::load_pzl_save();
 
-        // Display the game window.
-        display::display_all(&map, &mut main_cont, unsafe { PLAYER });
+    'full: loop {
+        let mut main_cont = windowed::Container::new();
+        let mut ui_cont = windowed::ui::UiContainer::new();
+        ui_cont.add_scene(scenes::main_menu());
+        ui_cont.add_scene(scenes::puzzle_select(&pzls, &completion));
+        ui_cont.add_scene(scenes::end_screen());
 
-        while let event::Event::Key(ke) = event::read().expect("what") {
-            if ke.is_press() {
-                let mv = match ke.code {
-                    event::KeyCode::Left
-                    | event::KeyCode::Char('a')
-                    | event::KeyCode::Char('h') => Point::new(-1, 0),
-                    event::KeyCode::Right
-                    | event::KeyCode::Char('d')
-                    | event::KeyCode::Char('l') => Point::new(1, 0),
-                    event::KeyCode::Down
-                    | event::KeyCode::Char('s')
-                    | event::KeyCode::Char('j') => Point::new(0, -1),
-                    event::KeyCode::Up
-                    | event::KeyCode::Char('w')
-                    | event::KeyCode::Char('k') => Point::new(0, 1),
-                    event::KeyCode::Esc => break 'main,
-                    _ => Point::ORIGIN,
-                };
+        main_cont.add_win(windowed::Window::new(GAME_POS));
+        let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+        match ui_cont.run() {
+            scenes::PLAY => (),
+            scenes::SAVE_AND_QUIT => break,
+            p if p >= 2000 => pzl_idx = p as usize - 2000,
+            a => panic!("Unrecognised exit code {a}"),
+        }
+        let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+        // Map used for the game.
+        let mut map = loader::puzzles::start_puzzle(&pzls[pzl_idx]);
 
-                unsafe { DIR = mv }
-                break;
+        'game: loop {
+            clear_events();
+
+            // Display the game window.
+            display::display_all(&map, &mut main_cont, unsafe { PLAYER });
+
+            while let event::Event::Key(ke) = event::read().expect("what") {
+                if ke.is_press() {
+                    let mv = match ke.code {
+                        event::KeyCode::Left
+                        | event::KeyCode::Char('a')
+                        | event::KeyCode::Char('h') => Point::new(-1, 0),
+                        event::KeyCode::Right
+                        | event::KeyCode::Char('d')
+                        | event::KeyCode::Char('l') => Point::new(1, 0),
+                        event::KeyCode::Down
+                        | event::KeyCode::Char('s')
+                        | event::KeyCode::Char('j') => Point::new(0, -1),
+                        event::KeyCode::Up
+                        | event::KeyCode::Char('w')
+                        | event::KeyCode::Char('k') => Point::new(0, 1),
+                        event::KeyCode::Esc => break 'full,
+                        _ => Point::ORIGIN,
+                    };
+
+                    unsafe { DIR = mv }
+                    break;
+                }
             }
+
+            map.update_vfx();
+
+            while map.update() {}
+            unsafe {
+                // Only true at this point when the puzzle is won, so record this.
+                if SHOULD_WIN {
+                    completion.insert(pzls[pzl_idx].id);
+                    ui_cont.change_scene(2);
+                    let mut restart = false;
+                    let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+
+                    match ui_cont.run() {
+                        scenes::SAVE_AND_QUIT => break 'full,
+                        scenes::NEXT => { 
+                            pzl_idx += 1;
+                            restart = true;
+                        },
+                        p if p >= 2000 => { 
+                            pzl_idx = p as usize - 2000;
+                            restart = true;
+                        }
+                        a => panic!("Unrecognised exit code {a}"),
+                    }
+
+                    if restart {
+                        if let Some(pzl) = pzls.get(pzl_idx) {
+                            map = loader::puzzles::start_puzzle(pzl);
+                            let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                            continue 'game;
+                        } else {
+                            continue 'full;
+                        }
+                    }
+                }
+                SHOULD_WIN = true;
+            }
+            let mut to_reset = Vec::new();
+
+            for (&p, _e) in map.get_entities() {
+                to_reset.push(p);
+            }
+
+            for p in to_reset {
+                map.get_ent_mut(p).unwrap().updated = false;
+            }
+
+            beam::INPTS.write().unwrap().clear();
         }
-
-        map.update_vfx();
-
-        while map.update() {}
-        let mut to_reset = Vec::new();
-
-        for (&p, _e) in map.get_entities() {
-            to_reset.push(p);
-        }
-
-        for p in to_reset {
-            map.get_ent_mut(p).unwrap().updated = false;
-        }
-
-        beam::INPTS.write().unwrap().clear();
     }
     
     // Put the terminal in a "normal" state in case the player actually wants to use it afterwards.
@@ -104,6 +153,9 @@ fn main() {
         cursor::MoveTo(0, 0),
         cursor::Show,
     );
+
+    // Save the completion to the file.
+    loader::saver::write_pzl_save(completion);
 }
 
 /// Clears all events currently in the queue.

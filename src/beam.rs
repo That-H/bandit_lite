@@ -8,15 +8,15 @@ use std::sync::{LazyLock, RwLock};
 pub static INPTS: LazyLock<RwLock<HashMap<Point, port::Clrs>>> = LazyLock::new(|| RwLock::new(HashMap::new()));
 
 /// Maps port numbers to directions out of the object.
-const PORT_DIRS: [Point; 8] = [
+pub const PORT_DIRS: [Point; 8] = [
     Point::new(-1, 1),
     Point::new(0, 1),
     Point::new(1, 1),
     Point::new(1, 0),
-    Point::new(-1, 0),
-    Point::new(-1, -1),
-    Point::new(0, -1),
     Point::new(1, -1),
+    Point::new(0, -1),
+    Point::new(-1, -1),
+    Point::new(-1, 0),
 ];
 
 /// Characters used for non diagonal lasers.
@@ -40,10 +40,10 @@ pub fn port_num(in_dir: Point) -> usize {
         Point { x: 0, y: -1 } => 1,
         Point { x: -1, y: -1 } => 2,
         Point { x: -1, y: 0 } => 3,
-        Point { x: 1, y: 0 } => 4,
-        Point { x: 1, y: 1 } => 5,
-        Point { x: 0, y: 1 } => 6,
-        Point { x: -1, y: 1 } => 7,
+        Point { x: -1, y: 1 } => 4,
+        Point { x: 0, y: 1 } => 5,
+        Point { x: 1, y: 1 } => 6,
+        Point { x: 1, y: 0 } => 7,
         _ => panic!("Invalid direction {in_dir}"),
     }
 }
@@ -119,6 +119,22 @@ impl TryFrom<char> for Clr {
     }
 }
 
+impl From<Clr> for char {
+    fn from(value: Clr) -> Self {
+        match value {
+            Clr::Black => 'n', 
+            Clr::Red => 'r', 
+            Clr::Green => 'g', 
+            Clr::Blue => 'b', 
+            Clr::Yellow => 'y', 
+            Clr::Magenta => 'm', 
+            Clr::Cyan => 'c', 
+            Clr::White => 'w', 
+        }
+        
+    }
+}
+
 /// A laser beam.
 #[derive(Clone, Debug, PartialEq)]
 pub struct Beam {
@@ -169,6 +185,11 @@ impl Beam {
             if let Some(t) = cmd.get_map(cur) && !t.opaque {
                 // An entity might change the beam, so handle this.
                 if let Some(e) = cmd.get_ent(cur) {
+                    let q = if let entity::EntType::Goal(clr) = e.tp && clr == self.clr {
+                        true
+                    } else {
+                        false
+                    };
                     inpts.entry(cur).or_default()[port] = self.clr;
                     for (o_port, &clr) in e.outputs(inpts.get(&cur).unwrap()).iter().enumerate() {
                         // Propagate beams that have a colour.
@@ -176,6 +197,11 @@ impl Beam {
                             let bm = Self::new(clr, PORT_DIRS[o_port]);
                             bm.prop_internal(cmd, cur, inpts);
                         }
+                    }
+                    if q {
+                        cmd.queue(bn::Cmd::new_on(cur).modify_entity(Box::new(
+                            |e: &mut Ent| e.updated = true
+                        )));
                     }
                     break;
                 } else {

@@ -1,7 +1,9 @@
 //! Contains utilities for displaying parts of the game.
 use super::*;
 
-/// Immediately displays the map into the container, then displayers it on to the screen.
+pub mod scenes;
+
+/// Immediately displays the map into the container, then displays it on to the screen.
 pub fn display_all(map: &bn::Map<Ent>, cont: &mut windowed::Container<StyleCh>, centre: Point) {
     display_map(map, cont, centre);
     cont.refresh();

@@ -47,6 +47,15 @@ impl PortGrp {
 
         Clrs::from_iter(outs)
     }
+
+    /// Rotate these ports 90 degrees clockwise, as well as their expressions.
+    pub fn rotate_90(&mut self) {
+        self.0.rotate_right(2);
+
+        for p in self.0.iter_mut() {
+            p.out.rotate_90();
+        }
+    }
 }
 
 impl FromIterator<Expr> for PortGrp {
@@ -81,6 +90,21 @@ impl Expr {
             Self::Op(op, e1, e2) => op.eval(e1.eval(inpts), e2.eval(inpts)),
             Self::UnaryOp(op, e1) => op.eval(e1.eval(inpts)),
             Self::Null => 0,
+        }
+    }
+
+    /// Rotates this expression 90 degrees clockwise.
+    fn rotate_90(&mut self) {
+        match self {
+            Self::Port(n) => *n = (*n + 2) % 8,
+            Self::Op(_op, e1, e2) => {
+                e1.rotate_90();
+                e2.rotate_90();
+            }
+            Self::UnaryOp(_op, e1) => {
+                e1.rotate_90();
+            }
+            _ => (),
         }
     }
 
