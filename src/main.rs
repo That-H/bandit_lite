@@ -1,6 +1,6 @@
 #![allow(unused_must_use)]
 
-use bandit_lite::*;
+use bandit_lite::{display::display_all, *};
 use crossterm::{execute, terminal, event, style, cursor};
 use style::Stylize;
 use std::{time, io};
@@ -46,12 +46,17 @@ fn main() {
     // Load completion state.
     let mut completion = loader::saver::load_pzl_save();
 
+    // Initial scene when the full loop begins.
+    let mut init_scene = 0;
+
     'full: loop {
         let mut main_cont = windowed::Container::new();
         let mut ui_cont = windowed::ui::UiContainer::new();
         ui_cont.add_scene(scenes::main_menu());
         ui_cont.add_scene(scenes::puzzle_select(&pzls, &completion));
         ui_cont.add_scene(scenes::end_screen());
+        ui_cont.add_scene(scenes::pause_screen());
+        ui_cont.change_scene(init_scene);
 
         main_cont.add_win(windowed::Window::new(GAME_POS));
         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
@@ -86,7 +91,42 @@ fn main() {
                         event::KeyCode::Up
                         | event::KeyCode::Char('w')
                         | event::KeyCode::Char('k') => Point::new(0, 1),
-                        event::KeyCode::Esc => break 'full,
+                        // Pause the game.
+                        event::KeyCode::Esc => {
+                            ui_cont.change_scene(3);
+                            let mut restart = false;
+                            let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+
+                            match ui_cont.run() {
+                                scenes::PLAY => {
+                                    display_all(&map, &mut main_cont, unsafe { PLAYER });
+                                },
+                                scenes::PUZZLE_SEL => {
+                                    init_scene = 1;
+                                    continue 'full;
+                                }
+                                scenes::SAVE_AND_QUIT => {
+                                    break 'full;
+                                }
+                                p if p >= 2000 => { 
+                                    pzl_idx = p as usize - 2000;
+                                    restart = true;
+                                }
+                                a => panic!("Unrecognised exit code {a}"),
+                            }
+                            if restart {
+                                if let Some(pzl) = pzls.get(pzl_idx) {
+                                    map = loader::puzzles::start_puzzle(pzl);
+                                    let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                                    continue 'game;
+                                } else {
+                                    init_scene = 0;
+                                    continue 'full;
+                                }
+                            } else { 
+                                continue;
+                            }
+                        },
                         _ => Point::ORIGIN,
                     };
 
@@ -112,6 +152,10 @@ fn main() {
                             pzl_idx += 1;
                             restart = true;
                         },
+                        scenes::PUZZLE_SEL => {
+                            init_scene = 1;
+                            continue 'full;
+                        }
                         p if p >= 2000 => { 
                             pzl_idx = p as usize - 2000;
                             restart = true;
@@ -125,6 +169,7 @@ fn main() {
                             let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
                             continue 'game;
                         } else {
+                            init_scene = 0;
                             continue 'full;
                         }
                     }

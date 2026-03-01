@@ -11,9 +11,13 @@ use std::collections::HashSet;
 const MAIN_MENU_SIZE: (usize, usize) = (20, 4);
 const MAIN_MENU_POS: Point = Point::new(centre(MAIN_MENU_SIZE.0), 12);
 const PZL_SIZE: (usize, usize) = (24, 17);
-const PZL_POS: Point = Point::new(centre(PZL_SIZE.0), 12);
-const END_SIZE: (usize, usize) = (20, 5);
-const END_POS: Point = Point::new(centre(END_SIZE.0), 12);
+const PZL_POS: Point = Point::new(centre(PZL_SIZE.0) - 15, 11);
+const PREVIEW_POS: Point = Point::new(PZL_POS.x + PZL_SIZE.0 as i32 + 3, PZL_POS.y);
+const PREVIEW_SIZE: (usize, usize) = PZL_SIZE;
+const END_SIZE: (usize, usize) = (20, 6);
+const END_POS: Point = Point::new(centre(END_SIZE.0), 14);
+const PAUSE_SIZE: (usize, usize) = (20, 6);
+const PAUSE_POS: Point = Point::new(centre(PAUSE_SIZE.0), 14);
 const SELECTOR: &str = ">";
 const HOVER_CLR: style::Color = style::Color::Yellow;
 const SELECTOR_CLR: style::Color = HOVER_CLR;
@@ -27,11 +31,15 @@ pub const SAVE_AND_QUIT: u32 = 1;
 pub const MAIN_MENU: u32 = 2;
 /// Exit code for immediately playing the next puzzle.
 pub const NEXT: u32 = 3;
+/// Exit code for going to puzzle select screen (necessary so you see the title).
+pub const PUZZLE_SEL: u32 = 4;
 
 /// Turn a width into a centred x position on the terminal.
 const fn centre(wid: usize) -> i32 {
     (TERMINAL_WID / 2 - wid as u16 / 2) as i32
 }
+
+mod linked_button;
 
 /// Make the given file into a title and put it in the scene.
 fn add_title<P: AsRef<std::path::Path>>(fname: P, scene: &mut ui::Scene, y: i32) {
@@ -41,7 +49,7 @@ fn add_title<P: AsRef<std::path::Path>>(fname: P, scene: &mut ui::Scene, y: i32)
     let wid = text.lines().next().unwrap().len();
 
     let title = ui::widgets::Title::new(Point::new(centre(wid), y), text, Some(DELAY));
-    scene.add_element(Box::new(title), Point::new(500, 500));
+    scene.add_element(Box::new(title), Point::new(500, 500+y));
 }
 
 /// Get the character used to outline scenes.
@@ -167,13 +175,23 @@ pub fn puzzle_select(pzls: &[loader::puzzles::Puzzle], completion: &HashSet<u128
             style::Color::White
         };
 
+        let button = basic_button()
+            .set_txt(format!("{}", pzl.name))
+            .set_clr(txt_clr)
+            .set_events(vec![
+                ui::Event::Broadcast(String::from("clr")),
+                ui::Event::Exit(n as u32 + 2000),
+            ])
+            .set_screen_pos(screen_pos);
+        let mut pzl_win = windowed::Window::new(PREVIEW_POS);
+        pzl.data.display_into(&mut pzl_win, Point::new(-10, 10), PREVIEW_SIZE.0 as u32, PREVIEW_SIZE.1 as u32);
+        pzl_win.outline_with(outline_ch());
         pzl_scene.add_element(
             Box::new(
-                basic_button()
-                    .set_txt(format!("{}", pzl.name))
-                    .set_clr(txt_clr)
-                    .set_event(ui::Event::Exit(n as u32 + 2000))
-                    .set_screen_pos(screen_pos),
+                linked_button::LinkedButton::new(
+                    button,
+                    pzl_win,
+                )
             ),
             pos,
         );
@@ -210,7 +228,10 @@ pub fn end_screen() -> ui::Scene {
         Box::new(
             basic_button()
                 .set_txt(String::from("Next Puzzle"))
-                .set_event(ui::Event::Exit(SAVE_AND_QUIT))
+                .set_events(vec![
+                    ui::Event::Broadcast(String::from("clr")),
+                    ui::Event::Exit(NEXT)
+                ])
                 .set_screen_pos(Point::new(1, 1)),
         ),
         Point::new(1, 1),
@@ -221,7 +242,7 @@ pub fn end_screen() -> ui::Scene {
                 .set_txt(String::from("Puzzle Select"))
                 .set_events(vec![
                     ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::ChangeScene(1),
+                    ui::Event::Exit(PUZZLE_SEL)
                 ])
                 .set_screen_pos(Point::new(1, 2)),
         ),
@@ -250,8 +271,67 @@ pub fn end_screen() -> ui::Scene {
     );
 
     add_outline(&mut scene, END_SIZE.0);
+    add_title("complete.txt", &mut scene, 1);
 
-    scene.move_cursor(Point::new(1, 2));
+    scene.move_cursor(Point::new(1, 1));
+
+    scene
+}
+
+/// Screen for when the game is paused.
+pub fn pause_screen() -> ui::Scene {
+    let mut scene = ui::Scene::new(PAUSE_POS, PAUSE_SIZE.0, PAUSE_SIZE.1);
+
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("Resume"))
+                .set_events(vec![
+                    ui::Event::Broadcast(String::from("clr")),
+                    ui::Event::Exit(PLAY),
+                ])
+                .set_screen_pos(Point::new(1, 1)),
+        ),
+        Point::new(1, 1),
+    );
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("Puzzle Select"))
+                .set_events(vec![
+                    ui::Event::Broadcast(String::from("clr")),
+                    ui::Event::Exit(PUZZLE_SEL)
+                ])
+                .set_screen_pos(Point::new(1, 2)),
+        ),
+        Point::new(1, 2),
+    );
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("Main Menu"))
+                .set_events(vec![
+                    ui::Event::Broadcast(String::from("clr")),
+                    ui::Event::ChangeScene(0),
+                ])
+                .set_screen_pos(Point::new(1, 3)),
+        ),
+        Point::new(1, 3),
+    );
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("Save and Quit"))
+                .set_event(ui::Event::Exit(SAVE_AND_QUIT))
+                .set_screen_pos(Point::new(1, 4)),
+        ),
+        Point::new(1, 4),
+    );
+
+    add_outline(&mut scene, PAUSE_SIZE.0);
+    add_title("paused.txt", &mut scene, 1);
+
+    scene.move_cursor(Point::new(1, 1));
 
     scene
 }
