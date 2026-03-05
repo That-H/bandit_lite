@@ -1,6 +1,7 @@
 //! Some internal utilities for making scenes.
 
 use super::*;
+use counter::Counter;
 
 /// Make a scene out of the provided position and size.
 pub fn mk_scene(pos: Point, size: (usize, usize)) -> ui::Scene {
@@ -89,4 +90,33 @@ pub fn basic_entry() -> ui::widgets::TextEntry {
 /// Adds an outline to the scene.
 pub fn add_outline(scene: &mut ui::Scene, wid: usize) {
     scene.add_element(Box::new(ui::widgets::Outline::new(outline_ch(), wid)), Point::new(999, 999));
+}
+
+/// Adds a counter with incr/decr buttons.
+pub fn add_counter(scene: &mut ui::Scene, id: usize, centre: Point, ui_centre: Point, min: i32, max: i32, init: i32) {
+    let mut counter = Counter::new(id, centre).with_min(min).with_max(max);
+    counter.set_value(init);
+
+    scene.add_element(
+        Box::new(counter),
+        Point::new(69, 69) + centre,
+    );
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("^"))
+                .set_event(ui::Event::Broadcast(format!("{id}:1")))
+                .set_screen_pos(centre + Point::new(0, -1)),
+        ),
+        ui_centre - Point::new(0, 1)
+    );
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("v"))
+                .set_event(ui::Event::Broadcast(format!("{id}:-1")))
+                .set_screen_pos(centre + Point::new(0, 1)),
+        ),
+        ui_centre
+    );
 }

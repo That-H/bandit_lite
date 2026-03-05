@@ -10,8 +10,8 @@ use std::collections::HashSet;
 
 const MAIN_MENU_SIZE: (usize, usize) = (20, 5);
 const MAIN_MENU_POS: Point = Point::new(centre(MAIN_MENU_SIZE.0), 12);
-const PZL_SIZE: (usize, usize) = (24, 17);
-const PZL_POS: Point = Point::new(centre(PZL_SIZE.0) - 15, 11);
+const PZL_SIZE: (usize, usize) = (24, 18);
+const PZL_POS: Point = Point::new(centre(PZL_SIZE.0) - 15, 10);
 const PREVIEW_POS: Point = Point::new(PZL_POS.x + PZL_SIZE.0 as i32 + 3, PZL_POS.y);
 const PREVIEW_SIZE: (usize, usize) = PZL_SIZE;
 const END_SIZE: (usize, usize) = (20, 6);
@@ -28,6 +28,8 @@ const EDIT_MENU_SIZE: (usize, usize) = (12, 5);
 const EDIT_MENU_POS: Point = Point::new(centre(EDIT_MENU_SIZE.0), 14);
 const WARN_WID: usize = 20;
 const WARN_POS: Point = Point::new(centre(WARN_WID), 14);
+const WID_HGT_SIZE: (usize, usize) = (20, 7);
+const WID_HGT_POS: Point = Point::new(centre(WID_HGT_SIZE.0), 14);
 const SELECTOR: &str = ">";
 const HOVER_CLR: style::Color = style::Color::Yellow;
 const SELECTOR_CLR: style::Color = HOVER_CLR;
@@ -68,6 +70,7 @@ const fn centre(wid: usize) -> i32 {
 }
 
 mod linked_button;
+mod counter;
 
 mod utils;
 use utils::*;
@@ -210,7 +213,11 @@ pub fn puzzle_select(
             ])
             .set_screen_pos(screen_pos);
         let mut pzl_win = windowed::Window::new(PREVIEW_POS);
-        pzl.data.display_into(&mut pzl_win, Point::new(-9, 9), PREVIEW_SIZE.0 as u32, PREVIEW_SIZE.1 as u32);
+        let top_left = Point::new(
+            -(PREVIEW_SIZE.0 as i32 / 2 - pzl.data.wid as i32 / 2),
+            PREVIEW_SIZE.1 as i32 / 2 + pzl.data.hgt as i32 / 2,
+        );
+        pzl.data.display_into(&mut pzl_win, top_left, PREVIEW_SIZE.0 as u32, PREVIEW_SIZE.1 as u32);
         pzl_win.outline_with(outline_ch());
         pzl_scene.add_element(
             Box::new(
@@ -629,3 +636,43 @@ pub fn editor_menu() -> ui::Scene {
 
     scene
 }
+
+/// Create a scene for getting a width and height of a puzzle.
+pub fn size_scene(min: i32, max: i32, init: i32) -> ui::Scene {
+    let mut scene = mk_scene(WID_HGT_POS, WID_HGT_SIZE);
+
+    add_counter(&mut scene, 0, Point::new(1, 2), Point::new(1, 2), min, max, init);
+    add_counter(&mut scene, 1, Point::new(4, 2), Point::new(2, 2), min, max, init);
+
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("Confirm"))
+                .set_events(vec![
+                    ui::Event::Broadcast(String::from("clr")),
+                    ui::Event::Exit(CONFIRM),
+                ])
+                .set_screen_pos(Point::new(1, 5)),
+        ),
+        Point::new(1, 3),
+    );
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("Cancel"))
+                .set_events(vec![
+                    ui::Event::Broadcast(String::from("clr")),
+                    ui::Event::Exit(CANCEL)
+                ])
+                .set_screen_pos(Point::new(10, 5)),
+        ),
+        Point::new(2, 3)
+    );
+
+    scene.move_cursor(Point::new(1, 2));
+    add_outline(&mut scene, WID_HGT_SIZE.0);
+    add_title("set_size.txt", &mut scene, 1);
+
+    scene
+}
+

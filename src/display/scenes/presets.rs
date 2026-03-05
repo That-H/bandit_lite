@@ -152,6 +152,7 @@ pub fn edit_puzzle(
                         match menu.run() {
                             CANCEL => (),
                             SAVE => { 
+                                let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
                                 pzl.data = temp_data;
                                 return true;
                             },
@@ -198,9 +199,23 @@ pub fn choose_puzzle(
         match puzzle_sel.run() {
             scenes::NEW_PUZZLE if editing => {
                 let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
-                if let Some(name) = get_name() {
-                    pack.pzls.push(puzzles::Puzzle::new(name)); 
-                    puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
+                loop {
+                    if let Some(name) = get_name() {
+                        let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                        if let Some((wid, hgt)) = get_size() {
+                            let mut pzl = puzzles::Puzzle::new(name);
+                            pzl.data.wid = wid as usize;
+                            pzl.data.hgt = hgt as usize;
+                            pack.pzls.push(pzl); 
+                            puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
+                            break;
+                        } else {
+                            let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                            continue;
+                        }
+                    } else {
+                        break;
+                    }
                 }
                 continue
             }
@@ -257,6 +272,21 @@ pub fn get_name() -> Option<String> {
         scenes::CONFIRM => {
             let name = cont.cur_scene().get_element(Point::new(1, 1)).unwrap().get_text();
             Some(name)
+        }
+        _ => None,
+    }
+}
+
+/// Get a width and height for something. Returns None if the user decides they don't want to give us a name.
+pub fn get_size() -> Option<(i32, i32)> {
+    let mut cont = ui::UiContainer::new();
+    cont.add_scene(scenes::size_scene(6, 16, 7));
+
+    match cont.run() {
+        scenes::CONFIRM => {
+            let wid = cont.cur_scene().get_element(Point::new(70, 71)).unwrap().get_text();
+            let hgt = cont.cur_scene().get_element(Point::new(73, 71)).unwrap().get_text();
+            Some((wid.parse().unwrap(), hgt.parse().unwrap()))
         }
         _ => None,
     }

@@ -39,6 +39,7 @@ pub fn load_custom_pzls(default_tile: &Tile, ts: &puzzles::ts::TileSet) -> Vec<p
 
     fnames.sort();
 
+    // Assume they are formatted correctly.
     for fname in fnames {
         packs.push(puzzles::load_pzls(fname, default_tile, ts).unwrap());        
     }

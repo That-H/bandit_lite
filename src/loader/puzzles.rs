@@ -181,7 +181,7 @@ pub fn load_pzls<P: AsRef<std::path::Path>>(
     tile_set: &ts::TileSet,
 ) -> Result<PuzzlePack, PzlIOErr> {
     // Get the name, and err if there isn't one.
-    let Some(name) = fname.as_ref().file_prefix() else { return Err(PzlIOErr::InvalidFile) };
+    let Some(_name) = fname.as_ref().file_prefix() else { return Err(PzlIOErr::InvalidFile) };
 
     // Make sure the file has the correct extension.
     if let Some(ext) = fname.as_ref().extension() {
@@ -192,14 +192,19 @@ pub fn load_pzls<P: AsRef<std::path::Path>>(
         return Err(PzlIOErr::InvalidFile);
     }
 
-    let mut pzls = PuzzlePack::new(name.to_str().unwrap().into());
-    let mut state = 0;
+    let mut pzls = PuzzlePack::new(String::new());
+    let mut state = -1;
     let mut data = String::new();
     let mut builder = PuzzleBuilder::new();
 
     for line in read_lines(fname)? {
         let line = line?;
         match state {
+            // Read pack name.
+            -1 => {
+                pzls.name = line.trim().to_string();
+                state = 0;
+            }
             // Read name.
             0 => {
                 builder.name = Some(line);

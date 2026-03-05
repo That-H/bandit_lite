@@ -67,17 +67,20 @@ pub fn write_pzls(pack: &puzzles::PuzzlePack) -> Result<(), puzzles::PzlIOErr> {
     let path = if is_secret(&pack.name) {
         loader::get_assets_path().join(loader::PZLS)
     } else {
-        get_save_path().join(PACK_SAVE_DIR).join(&format!("{}.pzls", pack.name))
+        get_save_path().join(PACK_SAVE_DIR).join(&format!("{:x}.pzls", u128::from_be_bytes(*md5::compute(&pack.name))))
     };
 
     let mut data = String::new();
+    // First line is pack name.
+    data.push_str(&pack.name);
+    data.push('\n');
 
     for pzl in pack.pzls.iter() {
         data.push_str(&pzl.name);
         data.push('\n');
-        for y in (0..pzl.data.hgt).rev() {
-            for x in 0..pzl.data.wid {
-                let p = Point::new(x as i32, y as i32);
+        for y in (0..pzl.data.hgt as i32).rev() {
+            for x in 0..=pzl.data.wid as i32 {
+                let p = Point::new(x, y);
                 if let Some(e) = pzl.data.get_ent(p) {
                     data.push_str(&e.file_repr());
                 } else if let Some(t) = pzl.data.get_map(p) {
@@ -116,7 +119,8 @@ pub fn is_secret(string: &str) -> bool {
 /// Erase the file that stores a puzzle pack. No checks for the secret pack as we will not delete
 /// the standard puzzles.
 pub fn delete_pack(name: String) -> Result<(), puzzles::PzlIOErr> {
-    let path = get_save_path().join(PACK_SAVE_DIR).join(&format!("{}.pzls", name));
+    let name = u128::from_be_bytes(*md5::compute(&name));
+    let path = get_save_path().join(PACK_SAVE_DIR).join(&format!("{:x}.pzls", name));
 
     fs::remove_file(path)?;
     Ok(())
