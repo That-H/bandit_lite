@@ -74,9 +74,9 @@ impl<'a> LevelEditor<'a> {
 
     /// Outline the map with walls.
     pub fn outline(&mut self) {
-        for y in 0..=self.data.hgt+1 {
-            for x in 0..=self.data.wid+1 {
-                let tl = if x == 0 || x == self.data.wid+1 || y == 0 || y == self.data.hgt+1 {
+        for y in 0..self.data.hgt {
+            for x in 0..self.data.wid {
+                let tl = if x == 0 || x == self.data.wid-1 || y == 0 || y == self.data.hgt-1 {
                     Tile::wall()
                 } else {
                     Tile::floor()

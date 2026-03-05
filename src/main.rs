@@ -33,6 +33,9 @@ fn main() {
         ordered_objs.push(vec![Ent::goal(clr)]);
         let mut lsrs = Vec::new();
         for p in 0..8 {
+            // This just makes sure the first rotation is not diagonal as orthogonal orientations
+            // are generally more useful in the editor.
+            let p = (p + 1) % 8;
             lsrs.push(Ent::laser(beam::PORT_DIRS[p], clr));
         }
         ordered_objs.push(lsrs);
