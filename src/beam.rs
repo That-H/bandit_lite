@@ -85,6 +85,22 @@ impl From<u8> for Clr {
     }
 }
 
+impl From<style::Color> for Clr {
+    fn from(value: style::Color) -> Self {
+        match value {
+            style::Color::Black => Self::Black,
+            style::Color::Red => Self::Red,
+            style::Color::Green => Self::Green,
+            style::Color::Blue => Self::Blue,
+            style::Color::Yellow => Self::Yellow,
+            style::Color::Magenta => Self::Magenta,
+            style::Color::Cyan => Self::Cyan,
+            style::Color::White => Self::White,
+            _ => Self::Black,
+        }
+    }
+}
+
 impl From<Clr> for style::Color {
     fn from(value: Clr) -> Self {
         match value {

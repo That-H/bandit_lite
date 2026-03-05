@@ -4,6 +4,7 @@ use std::collections::HashMap;
 use super::*;
 
 /// An object in a bandit map.
+#[derive(Clone, Debug)]
 pub enum BanditObj {
     Tile(Tile),
     En(Ent),

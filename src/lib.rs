@@ -54,6 +54,34 @@ impl Tile {
             opaque
         }
     }
+
+    /// Return the representation of this tile as it would be in a file.
+    pub fn file_repr(&self) -> String {
+        let mut string = String::new();
+        let ch1: char = beam::Clr::from(self.ch.style().foreground_color.unwrap()).into();
+        string.push(ch1);
+        string.push(*self.ch.content());
+
+        string
+    }
+
+    /// Return a standard wall tile.
+    pub fn wall() -> Self {
+        Self {
+            ch: '#'.white(),
+            blocking: true,
+            opaque: true,
+        }
+    }
+
+    /// Return a standard floor tile.
+    pub fn floor() -> Self {
+        Self {
+            ch: '.'.white(),
+            blocking: false,
+            opaque: false,
+        }
+    }
 }
 
 impl Default for Tile {

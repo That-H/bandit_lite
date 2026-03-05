@@ -1,6 +1,8 @@
 use super::*;
 
 const DIAG_ARROWS: [char; 8] = ['↖', '↑', '↗', '→', '↘', '↓', '↙', '←'];
+/// Background colour of immovable objects.
+pub const IMMOVABLE_CLR: style::Color = style::Color::DarkGrey;
 
 /// Encodes the behaviour of an entity.
 #[derive(Clone, Debug)]
@@ -25,6 +27,8 @@ pub struct Ent {
     pub tp: EntType,
     /// Whether or not this entity has been updated yet.
     pub updated: bool,
+    /// True if this entity can be pushed.
+    pub movable: bool,
 }
 
 impl Ent {
@@ -34,6 +38,7 @@ impl Ent {
             ch: '@'.white(),
             tp: EntType::Player,
             updated: false,
+            movable: true,
         }
     }
 
@@ -43,6 +48,7 @@ impl Ent {
             ch: DIAG_ARROWS[beam::port_num(-dir)].with(clr.into()),
             tp: EntType::Laser(beam::Beam::new(clr, dir)),
             updated: false,
+            movable: true,
         }
     }
 
@@ -52,6 +58,7 @@ impl Ent {
             ch: 'O'.with(clr.into()),
             tp: EntType::Goal(clr),
             updated: false,
+            movable: true,
         }
     }
 
@@ -65,6 +72,7 @@ impl Ent {
                 )
             ),
             updated: false,
+            movable: true,
         }
     }
 
@@ -105,6 +113,19 @@ impl Ent {
             _ => Default::default(),
         }
     }
+
+    /// Get the way this should be represented in a file.
+    pub fn file_repr(&self) -> String {
+        let mut string = String::new();
+        let mut ch1: char = beam::Clr::from(self.ch.style().foreground_color.unwrap()).into();
+        if !self.movable { 
+            ch1 = ch1.to_ascii_uppercase();
+        }
+        string.push(ch1);
+        string.push(*self.ch.content());
+
+        string
+    }
 }
 
 impl bn::Entity for Ent {
@@ -112,7 +133,11 @@ impl bn::Entity for Ent {
     type Vfx = Vfx;
 
     fn repr(&self) -> <<Self as bandit::Entity>::Tile as bandit::Tile>::Repr {
-        self.ch.clone()
+        if self.movable {
+            self.ch.clone()
+        } else {
+            self.ch.on(IMMOVABLE_CLR)
+        }
     }
 
     fn update(&self, cmd: &mut bandit::Commands<'_, Self>, pos: Point)
@@ -126,11 +151,11 @@ impl bn::Entity for Ent {
                 let nx = PLAYER + DIR;
                 if Ent::walkable(&cmd.get_map(nx)) {
                     // Push the entity in our way if possible.
-                    if cmd.get_ent(nx).is_some() {
+                    if let Some(e) = cmd.get_ent(nx) {
                         let nx2 = nx + DIR;
                         // Possible if the location we would push to contains no entity and is
                         // walkable.
-                        if Ent::walkable(&cmd.get_map(nx2)) && cmd.get_ent(nx2).is_none() {
+                        if Ent::walkable(&cmd.get_map(nx2)) && cmd.get_ent(nx2).is_none() && e.movable {
                             cmd.queue(bn::Cmd::new_on(nx).move_to(nx2));
                         } else {
                             return;

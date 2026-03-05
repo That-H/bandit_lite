@@ -12,18 +12,45 @@ const OBJS: &str = "objs.txt";
 const PZLS: &str = "pzls.pzls";
 
 /// Load builtin puzzles.
-pub fn load_standard_pzls(default_tile: &Tile, ts: &puzzles::ts::TileSet) -> Vec<puzzles::Puzzle> {
+pub fn load_standard_pzls(default_tile: &Tile, ts: &puzzles::ts::TileSet) -> puzzles::PuzzlePack {
     let assets = get_assets_path();
 
     // Assume standard puzzles are formatted correctly.
     puzzles::load_pzls(assets.join(PZLS), default_tile, ts).unwrap()
 }
 
+/// Load all user created puzzle packs.
+pub fn load_custom_pzls(default_tile: &Tile, ts: &puzzles::ts::TileSet) -> Vec<puzzles::PuzzlePack> {
+    let mut packs = Vec::new();
+    let save_dir = saver::get_save_path();
+    let custom_pzl_path = save_dir.join(loader::saver::PACK_SAVE_DIR);
+    eprintln!("{custom_pzl_path:?}");
+
+    let mut fnames = Vec::new();
+
+    for f in fs::read_dir(custom_pzl_path).unwrap() {
+        let f = f.unwrap();
+        let path = f.path();
+
+        if path.is_file() {
+            fnames.push(path);
+        }
+    }
+
+    fnames.sort();
+
+    for fname in fnames {
+        packs.push(puzzles::load_pzls(fname, default_tile, ts).unwrap());        
+    }
+
+    packs
+}
+
 /// Load some objects from the given file.
-pub fn load_objs() -> puzzles::ts::TileSet {
+pub fn load_objs() -> Vec<Vec<Ent>> {
     let mut chs = Vec::new();
     let mut exprs = vec![port::Expr::Null; 8];
-    let mut ts = puzzles::ts::TileSet::new();
+    let mut ents = Vec::new();
     let assets = get_assets_path();
 
     for line in read_lines(assets.join(OBJS)).unwrap() {
@@ -53,18 +80,19 @@ pub fn load_objs() -> puzzles::ts::TileSet {
         // Empty line means we should turn what we saw into an object.
         } else {
             let mut obj = Ent::obj(chs.remove(0), exprs);
-            ts.add_entity(obj.clone());
+            let mut this = vec![obj.clone()];
             for ch in chs {
                 obj.rotate_90();
                 obj.ch = ch;
-                ts.add_entity(obj.clone());
+                this.push(obj.clone());
             }
+            ents.push(this);
             chs = Vec::new();
             exprs = vec![port::Expr::Null; 8];
         }
     }
 
-    ts
+    ents
 }
 
 /// Return a buffered reader over the lines of a file.

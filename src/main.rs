@@ -1,6 +1,6 @@
 #![allow(unused_must_use)]
 
-use bandit_lite::{display::display_all, *};
+use bandit_lite::{display::display_all, loader::puzzles::ts::TileSet, *};
 use crossterm::{execute, terminal, event, style, cursor};
 use style::Stylize;
 use std::{time, io};
@@ -24,23 +24,40 @@ fn main() {
     );
 
     // Objects we have.
-    let mut objs = loader::load_objs();
-    let default_tile = Tile::new('.'.white(), false, false);
-    objs.add_tile(default_tile.clone());
-    objs.add_tile(Tile::new('#'.white(), true, true));
-    objs.add_entity(Ent::player());
+    let mut ordered_objs = loader::load_objs();
+    ordered_objs.insert(0, vec![Ent::player()]);
     
-    // Add goals and lasers to the tile set.
-    for i in 0..8 {
+    // Add goals and lasers to the object list.
+    for i in 1..8 {
         let clr = beam::Clr::from(i);
-        objs.add_entity(Ent::goal(clr));
+        ordered_objs.push(vec![Ent::goal(clr)]);
+        let mut lsrs = Vec::new();
         for p in 0..8 {
-            objs.add_entity(Ent::laser(beam::PORT_DIRS[p], clr));
+            lsrs.push(Ent::laser(beam::PORT_DIRS[p], clr));
         }
+        ordered_objs.push(lsrs);
     }
 
+    let mut ts = TileSet::new();
+    
+    // Add all objects to the tile set.
+    for ls in ordered_objs.iter() {
+        for ent in ls {
+            ts.add_entity(ent.clone());
+        }
+    }
+    
+    // Add tiles to the tile set.
+    let default_tile = Tile::new('.'.white(), false, false);
+    ts.add_tile(default_tile.clone());
+    ts.add_tile(Tile::new('#'.white(), true, true));
+
     // Load puzzles in.
-    let pzls = loader::load_standard_pzls(&default_tile, &objs);
+    let pzls = loader::load_standard_pzls(&default_tile, &ts);
+
+    // Load user created puzzles.
+    let mut custom_puzzles = loader::load_custom_pzls(&default_tile, &ts);
+
     // Index of current puzzle in the puzzle list.
     let mut pzl_idx = 0;
     // Load completion state.
@@ -53,7 +70,7 @@ fn main() {
         let mut main_cont = windowed::Container::new();
         let mut ui_cont = windowed::ui::UiContainer::new();
         ui_cont.add_scene(scenes::main_menu());
-        ui_cont.add_scene(scenes::puzzle_select(&pzls, &completion));
+        ui_cont.add_scene(scenes::puzzle_select(&pzls, &completion, true, false));
         ui_cont.add_scene(scenes::end_screen());
         ui_cont.add_scene(scenes::pause_screen());
         ui_cont.change_scene(init_scene);
@@ -63,12 +80,43 @@ fn main() {
         match ui_cont.run() {
             scenes::PLAY => (),
             scenes::SAVE_AND_QUIT => break,
+            scenes::EDITOR => {
+                loop {
+                    let pack_idx = scenes::presets::choose_pack(&mut custom_puzzles, &pzls);
+                    // User wants to edit a puzzle, so choose one.
+                    if let Some(idx) = pack_idx {
+                        let pzl_idx = scenes::presets::choose_puzzle(
+                            &mut custom_puzzles[idx],
+                            &completion,
+                            false,
+                            true
+                        );
+                        if let Some(idx2) = pzl_idx {
+                            // Stay in edit mode until the user quits.
+                            loop {
+                                let res = scenes::presets::edit_puzzle(&mut main_cont, &ordered_objs, &mut custom_puzzles[idx].pzls[idx2]);
+                                // Want to save this.
+                                if res {
+                                    loader::saver::write_pzls(&custom_puzzles[idx]);
+                                } else {
+                                    break;
+                                }
+                            }
+                        } else {
+                            continue;
+                        }
+                    } else {
+                        // User changed their mind about wanting to edit a puzzle.
+                        continue 'full;
+                    }
+                }
+            }
             p if p >= 2000 => pzl_idx = p as usize - 2000,
             a => panic!("Unrecognised exit code {a}"),
         }
         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
         // Map used for the game.
-        let mut map = loader::puzzles::start_puzzle(&pzls[pzl_idx]);
+        let mut map = loader::puzzles::start_puzzle(&pzls.pzls[pzl_idx]);
 
         'game: loop {
             clear_events();
@@ -115,7 +163,7 @@ fn main() {
                                 a => panic!("Unrecognised exit code {a}"),
                             }
                             if restart {
-                                if let Some(pzl) = pzls.get(pzl_idx) {
+                                if let Some(pzl) = pzls.pzls.get(pzl_idx) {
                                     map = loader::puzzles::start_puzzle(pzl);
                                     let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
                                     continue 'game;
@@ -141,7 +189,7 @@ fn main() {
             unsafe {
                 // Only true at this point when the puzzle is won, so record this.
                 if SHOULD_WIN {
-                    completion.insert(pzls[pzl_idx].id);
+                    completion.insert(pzls.pzls[pzl_idx].id);
                     ui_cont.change_scene(2);
                     let mut restart = false;
                     let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
@@ -164,7 +212,7 @@ fn main() {
                     }
 
                     if restart {
-                        if let Some(pzl) = pzls.get(pzl_idx) {
+                        if let Some(pzl) = pzls.pzls.get(pzl_idx) {
                             map = loader::puzzles::start_puzzle(pzl);
                             let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
                             continue 'game;
@@ -201,6 +249,11 @@ fn main() {
 
     // Save the completion to the file.
     loader::saver::write_pzl_save(completion);
+
+    // Save custom puzzles.
+    for pack in custom_puzzles.iter() {
+        loader::saver::write_pzls(pack);
+    }
 }
 
 /// Clears all events currently in the queue.

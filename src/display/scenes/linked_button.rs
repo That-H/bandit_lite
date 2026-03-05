@@ -32,7 +32,25 @@ impl ui::UiElement for LinkedButton {
         self.button.true_pos()
     }
 
-    fn receive(&mut self, _data: &str) {}
+    fn receive(&mut self, data: &str) {
+        if data == "clr" {
+            let mut handle = io::stdout();
+            let hgt = self.win.data.len();
+            let wid = self.win.data[0].len();
+            for y in 0..hgt {
+                let y = y as u16 + self.win.top_left.y as u16;
+                for x in 0..wid {
+                    let x = x as u16 + self.win.top_left.x as u16;
+                    let _ = queue!(
+                        handle,
+                        cursor::MoveTo(x, y),
+                        style::Print(' '.stylize()),
+                    );
+                }
+            }
+            let _ = handle.flush();
+        }
+    }
 
     fn priority(&self) -> i32 {
         self.button.priority()
@@ -49,16 +67,14 @@ impl ui::UiElement for LinkedButton {
     fn toggle_hover(&mut self) {
         self.button.toggle_hover();
         self.hovered = !self.hovered;
+        if !self.hovered {
+            return;
+        }
         let mut handle = io::stdout();
         for (y, row) in self.win.data.iter().enumerate() {
             let y = y as u16 + self.win.top_left.y as u16;
             for (x, &ch) in row.iter().enumerate() {
                 let x = x as u16 + self.win.top_left.x as u16;
-                let ch = if self.hovered { 
-                    ch
-                } else {
-                    ' '.stylize()
-                };
                 let _ = queue!(
                     handle,
                     cursor::MoveTo(x, y),

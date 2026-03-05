@@ -1,6 +1,7 @@
 //! Loading and handling puzzles.
 
 use super::*;
+use std::fmt;
 
 pub mod ts;
 
@@ -41,6 +42,7 @@ impl PuzzleBuilder {
 }
 
 /// Contains all necessary information for a puzzle.
+#[derive(Clone)]
 pub struct Puzzle {
     /// Map of the puzzle.
     pub data: bn::Map<Ent>,
@@ -56,7 +58,7 @@ impl Puzzle {
     /// Create an empty puzzle with a name.
     pub fn new(name: String) -> Self {
         Self {
-            data: bn::Map::new(50, 50),
+            data: bn::Map::new(7, 7),
             pl_pos: Point::ORIGIN,
             name,
             id: 0,
@@ -81,21 +83,54 @@ impl TryFrom<PuzzleBuilder> for Puzzle {
     }
 }
 
+/// A group of puzzles.
+#[derive(Clone)]
+pub struct PuzzlePack {
+    /// Name of the pack.
+    pub name: String,
+    /// Actual puzzles contained.
+    pub pzls: Vec<Puzzle>,
+}
+
+impl PuzzlePack {
+    /// Create a new puzzle pack with the given name.
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            pzls: Vec::new(),
+        }
+    }
+
+    /// Add the puzzle to the pack.
+    pub fn add_pzl(&mut self, pzl: Puzzle) {
+        self.pzls.push(pzl);
+    }
+}
+
 /// Turns a string into a map using a tile set.
-fn create_map(data: &str, tile_set: &ts::TileSet, default_tile: &Tile) -> PuzzleBuilder {
+fn create_map(data: &str, tile_set: &ts::TileSet, default_tile: &Tile) -> Result<PuzzleBuilder, PzlIOErr> {
     let mut map = bn::Map::new(69, 69);
     let mut builder = PuzzleBuilder::new();
+    let mut max_x = 0;
+    let mut max_y = 0;
 
     for (y, ln) in data.lines().rev().enumerate() {
+        max_y += 1;
         let mut clr = beam::Clr::Black;
+        let mut movable = true;
         for (x, ch) in ln.chars().enumerate() {
+            max_x = std::cmp::max(max_x, x / 2 + 1);
             if x % 2 == 0 {
-                clr = ch.try_into().unwrap();
+                clr = ch.to_ascii_lowercase().try_into()?;
+                if ch.is_uppercase() {
+                    movable = false;
+                }
                 continue;
             }
 
             let pos = Point::new((x / 2) as i32, y as i32);
 
+            // Try to map this character to an object.
             if let Some(obj) = tile_set.map(ch.with(clr.into())) {
                 match obj {
                     ts::BanditObj::Tile(t) => map.insert_tile(t.clone(), pos),
@@ -103,27 +138,37 @@ fn create_map(data: &str, tile_set: &ts::TileSet, default_tile: &Tile) -> Puzzle
                         if en.is_player() {
                             builder.pl_pos.replace(pos);
                         }
-                        map.insert_entity(en.clone(), pos);
+                        let mut en = en.clone();
+                        en.movable = movable;
+                        movable = true;
+                        map.insert_entity(en, pos);
                         map.insert_tile(default_tile.clone(), pos);
                     }
                 }
+            // If we can't, start screaming.
+            } else {
+                eprintln!("{ch}");
+                return Err(PzlIOErr::InvalidFormat);
             }
         }
     }
 
+    map.wid = max_x;
+    map.hgt = max_y;
     builder.id.replace(u128::from_ne_bytes(*md5::compute(data.as_bytes())));
     builder.data.replace(map);
-    builder
+    Ok(builder)
 }
 
-/// Uses the given tileset to turn a string into a puzzle. Unknown characters will be ignored.
+/// Uses the given tileset to turn a string into a puzzle. Unknown characters will cause an error
+/// to be returned.
 pub fn load_pzl(
     data: &str,
     default_tile: &Tile,
     tile_set: &ts::TileSet,
     name: String,
-) -> Result<Puzzle, ()> {
-    let mut b = create_map(data, tile_set, default_tile);
+) -> Result<Puzzle, PzlIOErr> {
+    let mut b = create_map(data, tile_set, default_tile)?;
     b.name = Some(name);
 
     Ok(Puzzle::try_from(b)?)
@@ -134,14 +179,26 @@ pub fn load_pzls<P: AsRef<std::path::Path>>(
     fname: P,
     default_tile: &Tile,
     tile_set: &ts::TileSet,
-) -> Result<Vec<Puzzle>, ()> {
-    let mut pzls = Vec::new();
+) -> Result<PuzzlePack, PzlIOErr> {
+    // Get the name, and err if there isn't one.
+    let Some(name) = fname.as_ref().file_prefix() else { return Err(PzlIOErr::InvalidFile) };
+
+    // Make sure the file has the correct extension.
+    if let Some(ext) = fname.as_ref().extension() {
+        if ext.to_str().unwrap() != "pzls" {
+            return Err(PzlIOErr::InvalidFile);
+        }
+    } else {
+        return Err(PzlIOErr::InvalidFile);
+    }
+
+    let mut pzls = PuzzlePack::new(name.to_str().unwrap().into());
     let mut state = 0;
     let mut data = String::new();
     let mut builder = PuzzleBuilder::new();
 
-    for line in read_lines(fname).unwrap() {
-        let line = line.unwrap();
+    for line in read_lines(fname)? {
+        let line = line?;
         match state {
             // Read name.
             0 => {
@@ -156,9 +213,9 @@ pub fn load_pzls<P: AsRef<std::path::Path>>(
                         &data,
                         default_tile,
                         tile_set,
-                        builder.name.unwrap(),
+                        builder.name.ok_or(PzlIOErr::InvalidFormat)?,
                     )?;
-                    pzls.push(pzl);
+                    pzls.add_pzl(pzl);
                     data = String::new();
                     builder = PuzzleBuilder::new();
                     state = 0;
@@ -174,3 +231,44 @@ pub fn load_pzls<P: AsRef<std::path::Path>>(
     Ok(pzls)
 }
 
+/// An error when writing/loading a puzzle.
+#[derive(Clone, Copy, Debug, Default)]
+pub enum PzlIOErr {
+    InvalidFile,
+    #[default]
+    InvalidFormat,
+    FileBusy,
+    CantAccess,
+}
+
+impl From<()> for PzlIOErr {
+    fn from(_value: ()) -> Self {
+        Self::InvalidFormat
+    }
+}
+
+impl From<io::Error> for PzlIOErr {
+    fn from(value: io::Error) -> Self {
+        match value.kind() {
+            io::ErrorKind::InvalidFilename => Self::InvalidFile,
+            io::ErrorKind::NotFound => Self::CantAccess,
+            io::ErrorKind::PermissionDenied => Self::CantAccess,
+            io::ErrorKind::InvalidData => Self::InvalidFormat,
+            io::ErrorKind::IsADirectory => Self::InvalidFile,
+            _ => Self::CantAccess,
+        }
+    }
+}
+
+impl fmt::Display for PzlIOErr {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        let txt = match *self {
+            Self::InvalidFile => "Invalid File Type",
+            Self::InvalidFormat => "File is Corrupt",
+            Self::FileBusy => "File is Busy",
+            Self::CantAccess => "Can't Access File",
+        };
+        
+        write!(f, "{txt}")
+    }
+}

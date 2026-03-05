@@ -19,7 +19,6 @@ pub fn display_map(map: &bn::Map<Ent>, cont: &mut windowed::Container<StyleCh>, 
     cur_win.outline_with('#'.grey());
 }
 
-
 /// Display a window container into the terminal window.
 pub fn print_win(win_cont: &windowed::Container<style::StyledContent<char>>) {
     let mut handle = io::stdout();
