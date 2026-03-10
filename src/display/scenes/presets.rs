@@ -90,13 +90,12 @@ pub fn choose_pack(packs: &mut Vec<puzzles::PuzzlePack>, std_pzls: &puzzles::Puz
     Some(pack_idx)
 }
 
-/// Edit a puzzle using the LevelEditor. Returns true if it should be saved, otherwise false.
-/// Doesn't actually modify the puzzle until the user presses save.
+/// Edit a puzzle using the LevelEditor.
 pub fn edit_puzzle(
     cont: &mut windowed::Container<StyleCh>,
     objs: &Vec<Vec<Ent>>,
     pzl: &mut puzzles::Puzzle,
-) -> bool {
+) -> EditExit {
     let mut handle = io::stdout();
     let mut ui = ui::UiContainer::new();
     let mut scene = ui::Scene::new(level_editor::DEFAULT_POS - Point::new(18, 1), 4, 7);
@@ -126,8 +125,10 @@ pub fn edit_puzzle(
     menu.add_scene(scenes::editor_menu());
     menu.add_scene(scenes::confirm_scene(String::from("Are you sure?      Unsaved changes   will be lost!")));
 
-    let mut temp_data = pzl.data.clone();
-    let mut editor = level_editor::LevelEditor::new(objs, &mut temp_data);
+    let mut editor = level_editor::LevelEditor::new(objs, &mut pzl.data);
+    // This is the default player position of puzzles, so if it is this, there must not be a
+    // player yet.
+    editor.pl_pos = if pzl.pl_pos == Point::new(-69, -420) { None } else { Some(pzl.pl_pos) };
     
     editor.outline();
 
@@ -153,10 +154,25 @@ pub fn edit_puzzle(
                             CANCEL => (),
                             SAVE => { 
                                 let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
-                                pzl.data = temp_data;
-                                return true;
+                                if let Some(p) = editor.pl_pos {
+                                    pzl.update();
+                                    pzl.pl_pos = p;
+                                    return EditExit::Save;
+                                } else {
+                                    warn("No Player!");
+                                }
                             },
-                            CONFIRM => return false,
+                            CONFIRM => return EditExit::Quit,
+                            PLAY => {
+                                let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                                if let Some(p) = editor.pl_pos {
+                                    pzl.update();
+                                    pzl.pl_pos = p;
+                                    return EditExit::Test;
+                                } else {
+                                    warn("No Player!");
+                                }
+                            }
                             _ => (),
                         }
                         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
@@ -167,6 +183,14 @@ pub fn edit_puzzle(
             }
         }
     }
+}
+
+/// A way in which the edit_puzzle function can exit.
+#[derive(Clone, Debug)]
+pub enum EditExit {
+    Save,
+    Quit,
+    Test,
 }
 
 /// Choose a puzzle from the pack, with options to create new puzzles, rename them, or delete them.
@@ -250,6 +274,7 @@ pub fn choose_puzzle(
                             CANCEL => (),
                             _ => unreachable!(),
                         }
+                        let _ = loader::saver::write_pzls(pack);
                     }
                     CANCEL => (),
                     _ => unreachable!(),
@@ -291,3 +316,12 @@ pub fn get_size() -> Option<(i32, i32)> {
         _ => None,
     }
 }
+
+/// Tell the user off about something.
+pub fn warn(msg: &str) {
+    let mut cont = ui::UiContainer::new();
+    cont.add_scene(scenes::warn_scene(String::from(msg)));
+
+    cont.run();
+}
+

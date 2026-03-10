@@ -10,6 +10,7 @@ pub fn start_puzzle(pzl: &Puzzle) -> bn::Map<Ent> {
     unsafe {
         PLAYER = pzl.pl_pos;
     }
+    MOVES.write().unwrap().clear();
     pzl.data.clone()
 }
 
@@ -59,10 +60,35 @@ impl Puzzle {
     pub fn new(name: String) -> Self {
         Self {
             data: bn::Map::new(7, 7),
-            pl_pos: Point::ORIGIN,
+            pl_pos: Point::new(-69, -420),
             name,
             id: 0,
         }
+    }
+
+    /// Get this puzzle's file friendly textual representation. Does not include the name of the
+    /// puzzle.
+    pub fn file_repr(&self) -> String {
+        let mut data = String::new();
+
+        for y in (0..self.data.hgt as i32).rev() {
+            for x in 0..=self.data.wid as i32 {
+                let p = Point::new(x, y);
+                if let Some(e) = self.data.get_ent(p) {
+                    data.push_str(&e.file_repr());
+                } else if let Some(t) = self.data.get_map(p) {
+                    data.push_str(&t.file_repr());
+                }
+            }
+            data.push('\n');
+        }
+
+        data
+    }
+
+    /// Update the identifier of this puzzle.
+    pub fn update(&mut self) {
+        self.id = u128::from_be_bytes(*md5::compute(&self.file_repr()));
     }
 }
 
@@ -147,7 +173,6 @@ fn create_map(data: &str, tile_set: &ts::TileSet, default_tile: &Tile) -> Result
                 }
             // If we can't, start screaming.
             } else {
-                eprintln!("{ch}");
                 return Err(PzlIOErr::InvalidFormat);
             }
         }
@@ -155,7 +180,7 @@ fn create_map(data: &str, tile_set: &ts::TileSet, default_tile: &Tile) -> Result
 
     map.wid = max_x;
     map.hgt = max_y;
-    builder.id.replace(u128::from_ne_bytes(*md5::compute(data.as_bytes())));
+    builder.id.replace(u128::from_be_bytes(*md5::compute(data.as_bytes())));
     builder.data.replace(map);
     Ok(builder)
 }
@@ -205,7 +230,7 @@ pub fn load_pzls<P: AsRef<std::path::Path>>(
                 pzls.name = line.trim().to_string();
                 state = 0;
             }
-            // Read name.
+            // Read name of puzzle.
             0 => {
                 builder.name = Some(line);
 

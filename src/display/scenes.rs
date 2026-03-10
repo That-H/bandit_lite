@@ -16,7 +16,7 @@ const PREVIEW_POS: Point = Point::new(PZL_POS.x + PZL_SIZE.0 as i32 + 3, PZL_POS
 const PREVIEW_SIZE: (usize, usize) = PZL_SIZE;
 const END_SIZE: (usize, usize) = (20, 6);
 const END_POS: Point = Point::new(centre(END_SIZE.0), 14);
-const PAUSE_SIZE: (usize, usize) = (20, 6);
+const PAUSE_SIZE: (usize, usize) = (20, 7);
 const PAUSE_POS: Point = Point::new(centre(PAUSE_SIZE.0), 14);
 const PACK_SIZE: (usize, usize) = (20, 11);
 const PACK_POS: Point = Point::new(centre(PACK_SIZE.0), 14);
@@ -24,7 +24,7 @@ const ENTRY_SIZE: (usize, usize) = (20, 4);
 const ENTRY_POS: Point = Point::new(centre(ENTRY_SIZE.0), 14);
 const OPTS_SIZE: (usize, usize) = (10, 6);
 const OPTS_POS: Point = Point::new(centre(OPTS_SIZE.0), 14);
-const EDIT_MENU_SIZE: (usize, usize) = (12, 5);
+const EDIT_MENU_SIZE: (usize, usize) = (12, 6);
 const EDIT_MENU_POS: Point = Point::new(centre(EDIT_MENU_SIZE.0), 14);
 const WARN_WID: usize = 20;
 const WARN_POS: Point = Point::new(centre(WARN_WID), 14);
@@ -63,6 +63,8 @@ pub const MODIFY: u32 = 11;
 pub const DEL: u32 = 12;
 /// Exit code for saving progress, but not quitting.
 pub const SAVE: u32 = 13;
+/// Exit code to reset the puzzle to the initial state.
+pub const RESET: u32 = 14;
 
 /// Turn a width into a centred x position on the terminal.
 const fn centre(wid: usize) -> i32 {
@@ -267,57 +269,41 @@ pub fn puzzle_select(
 }
 
 /// End screen when a puzzle is completed.
-pub fn end_screen() -> ui::Scene {
-    let mut scene = ui::Scene::new(END_POS, END_SIZE.0, END_SIZE.1);
+pub fn end_screen(editor: bool) -> ui::Scene {
+    let hgt = if editor { 
+        3 
+    } else {
+        END_SIZE.1
+    };
+    let mut scene = ui::Scene::new(END_POS, END_SIZE.0, hgt);
 
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Next Puzzle"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(NEXT)
-                ])
-                .set_screen_pos(Point::new(1, 1)),
-        ),
-        Point::new(1, 1),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Puzzle Select"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(PUZZLE_SEL)
-                ])
-                .set_screen_pos(Point::new(1, 2)),
-        ),
-        Point::new(1, 2),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Main Menu"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::ChangeScene(0),
-                ])
-                .set_screen_pos(Point::new(1, 3)),
-        ),
-        Point::new(1, 3),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Save and Quit"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(SAVE_AND_QUIT),
-                ])
-                .set_screen_pos(Point::new(1, 4)),
-        ),
-        Point::new(1, 4),
-    );
+    let txt = if editor {
+        vec![
+            ("Back to Editor", ui::Event::Exit(EDITOR))
+        ]
+    } else {
+        vec![
+            ("Next Puzzle", ui::Event::Exit(NEXT)),
+            ("Puzzle Select", ui::Event::Exit(PUZZLE_SEL)),
+            ("Main Menu", ui::Event::ChangeScene(0)),
+            ("Save and Quit", ui::Event::Exit(SAVE_AND_QUIT)),
+        ]
+    };
+
+    for (n, (msg, ev)) in txt.into_iter().enumerate() {
+        scene.add_element(
+            Box::new(
+                basic_button()
+                    .set_txt(String::from(msg))
+                    .set_events(vec![
+                        ui::Event::Broadcast(String::from("clr")),
+                        ev
+                    ])
+                    .set_screen_pos(Point::new(1, n as i32 + 1)),
+            ),
+            Point::new(1, n as i32 + 1),
+        );
+    }
 
     add_outline(&mut scene, END_SIZE.0);
     add_title("complete.txt", &mut scene, 1);
@@ -328,57 +314,44 @@ pub fn end_screen() -> ui::Scene {
 }
 
 /// Screen for when the game is paused.
-pub fn pause_screen() -> ui::Scene {
-    let mut scene = ui::Scene::new(PAUSE_POS, PAUSE_SIZE.0, PAUSE_SIZE.1);
+pub fn pause_screen(editor: bool) -> ui::Scene {
+    let hgt = if editor { 
+        5
+    } else {
+        PAUSE_SIZE.1
+    };
+    let mut scene = ui::Scene::new(PAUSE_POS, PAUSE_SIZE.0, hgt);
 
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Resume"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(PLAY),
-                ])
-                .set_screen_pos(Point::new(1, 1)),
-        ),
-        Point::new(1, 1),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Puzzle Select"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(PUZZLE_SEL)
-                ])
-                .set_screen_pos(Point::new(1, 2)),
-        ),
-        Point::new(1, 2),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Main Menu"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::ChangeScene(0),
-                ])
-                .set_screen_pos(Point::new(1, 3)),
-        ),
-        Point::new(1, 3),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Save and Quit"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(SAVE_AND_QUIT),
-                ])
-                .set_screen_pos(Point::new(1, 4)),
-        ),
-        Point::new(1, 4),
-    );
+    let txt = if editor {
+        vec![
+            ("Resume", ui::Event::Exit(PLAY)),
+            ("Reset", ui::Event::Exit(RESET)),
+            ("Back to Editor", ui::Event::Exit(EDITOR))
+        ]
+    } else {
+        vec![
+            ("Resume", ui::Event::Exit(PLAY)),
+            ("Reset", ui::Event::Exit(RESET)),
+            ("Puzzle Select", ui::Event::Exit(PUZZLE_SEL)),
+            ("Main Menu", ui::Event::Exit(MAIN_MENU)),
+            ("Save and Quit", ui::Event::Exit(SAVE_AND_QUIT)),
+        ]
+    };
+
+    for (n, (msg, ev)) in txt.into_iter().enumerate() {
+        scene.add_element(
+            Box::new(
+                basic_button()
+                    .set_txt(String::from(msg))
+                    .set_events(vec![
+                        ui::Event::Broadcast(String::from("clr")),
+                        ev
+                    ])
+                    .set_screen_pos(Point::new(1, n as i32 + 1)),
+            ),
+            Point::new(1, n as i32 + 1),
+        );
+    }
 
     add_outline(&mut scene, PAUSE_SIZE.0);
     add_title("paused.txt", &mut scene, 1);
@@ -589,6 +562,52 @@ pub fn confirm_scene(msg: String) -> ui::Scene {
     scene
 }
 
+/// Warns the user about something they did wrong and doesn't give them a choice.
+pub fn warn_scene(msg: String) -> ui::Scene {
+    let hgt = msg.len() / (WARN_WID - 2) + 5;
+    let mut scene = mk_scene(WARN_POS, (WARN_WID, hgt));
+
+    let mut cur_str = String::new();
+    let mut y = 1;
+
+    for (n, ch) in msg.chars().enumerate() {
+        cur_str.push(ch);
+        if (n % (WARN_WID - 2) == 0 && n != 0) || n == msg.len() - 1 {
+            scene.add_element(
+                Box::new(
+                    basic_button()
+                        .set_txt(cur_str)
+                        .set_clr(style::Color::DarkRed)
+                        .set_screen_pos(Point::new(1, y))
+                        .set_static_len(false)
+                ),
+                Point::new(1, y-69),
+            );
+            cur_str = String::new();
+            y += 1;
+        }
+    }
+
+    scene.add_element(
+        Box::new(
+            basic_button()
+                .set_txt(String::from("Cool story"))
+                .set_events(vec![
+                    ui::Event::Broadcast(String::from("clr")),
+                    ui::Event::Exit(CONFIRM),
+                ])
+                .set_screen_pos(Point::new(1, y+1)),
+        ),
+        Point::new(1, 1),
+    );
+
+    add_outline(&mut scene, WARN_WID);
+    add_title("warning.txt", &mut scene, 1);
+    scene.move_cursor(Point::new(1, 1));
+
+    scene
+}
+
 /// Menu reached by pressing esc in the editor.
 pub fn editor_menu() -> ui::Scene {
     let mut scene = mk_scene(EDIT_MENU_POS, EDIT_MENU_SIZE);
@@ -608,14 +627,26 @@ pub fn editor_menu() -> ui::Scene {
     scene.add_element(
         Box::new(
             basic_button()
+                .set_txt(String::from("Test"))
+                .set_events(vec![
+                    ui::Event::Broadcast(String::from("clr")),
+                    ui::Event::Exit(PLAY),
+                ])
+                .set_screen_pos(Point::new(1, 2)),
+        ),
+        Point::new(1, 2),
+    );
+    scene.add_element(
+        Box::new(
+            basic_button()
                 .set_txt(String::from("Save"))
                 .set_events(vec![
                     ui::Event::Broadcast(String::from("clr")),
                     ui::Event::Exit(SAVE),
                 ])
-                .set_screen_pos(Point::new(1, 2)),
+                .set_screen_pos(Point::new(1, 3)),
         ),
-        Point::new(1, 2),
+        Point::new(1, 3),
     );
     scene.add_element(
         Box::new(
@@ -625,9 +656,9 @@ pub fn editor_menu() -> ui::Scene {
                     ui::Event::Broadcast(String::from("clr")),
                     ui::Event::ChangeScene(1),
                 ])
-                .set_screen_pos(Point::new(1, 3)),
+                .set_screen_pos(Point::new(1, 4)),
         ),
-        Point::new(1, 3),
+        Point::new(1, 4),
     );
 
     add_outline(&mut scene, EDIT_MENU_SIZE.0);

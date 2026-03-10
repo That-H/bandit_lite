@@ -17,6 +17,8 @@ pub struct LevelEditor<'a> {
     pub cur_idx: usize,
     cur_rot: usize,
     just_deleted: bool,
+    /// Current player position.
+    pub pl_pos: Option<Point>,
 }
 
 impl<'a> LevelEditor<'a> {
@@ -29,6 +31,7 @@ impl<'a> LevelEditor<'a> {
             cur_idx: 0,
             cur_rot: 0,
             just_deleted: false,
+            pl_pos: None,
         };
         editor
     }
@@ -61,7 +64,16 @@ impl<'a> LevelEditor<'a> {
                 };
 
                 if p == self.cursor && show_cursor {
-                    let content = if self.just_deleted { '.' } else { *self.get_obj().ch.content() };
+                    let content = if self.just_deleted || (self.pl_pos.is_some() && self.cur_idx == 0) { 
+                        let style_ch = if let Some(e) = self.data.get_ent(self.cursor) {
+                            e.ch
+                        } else {
+                            self.data.get_map(self.cursor).unwrap().ch
+                        };
+                        *style_ch.content()
+                    } else {
+                        *self.get_obj().ch.content() 
+                    };
                     ch = content.on(CURSOR_CLR);
                 }
 
@@ -76,12 +88,17 @@ impl<'a> LevelEditor<'a> {
     pub fn outline(&mut self) {
         for y in 0..self.data.hgt {
             for x in 0..self.data.wid {
+                let p = Point::new(x as i32, y as i32);
                 let tl = if x == 0 || x == self.data.wid-1 || y == 0 || y == self.data.hgt-1 {
                     Tile::wall()
                 } else {
+                    // Don't overwrite my walls with floors!
+                    if let Some(t) = self.data.get_map(p) && t.blocking {
+                        continue;
+                    }
                     Tile::floor()
                 };
-                self.data.insert_tile(tl, Point::new(x as i32, y as i32))
+                self.data.insert_tile(tl, p)
             }
         }
     }
@@ -144,17 +161,31 @@ impl<'a> LevelEditor<'a> {
                 Point::ORIGIN
             }
             event::KeyCode::Enter => {
-                self.data.insert_entity(self.get_obj().clone(), self.cursor);
+                if self.cur_idx == 0 && self.pl_pos.is_some() {
+                    return EditEvent::Null;
+                }
+                if let Some(t) = self.data.get_map(self.cursor) && !t.blocking {
+                    self.data.insert_entity(self.get_obj().clone(), self.cursor);
+                    if self.cur_idx == 0 && self.pl_pos.is_none() {
+                        self.pl_pos = Some(self.cursor);
+                    }
+                }
                 self.just_deleted = false;
                 Point::ORIGIN
             }
             event::KeyCode::Char(';') => {
-                self.data.insert_tile(Tile::wall(), self.cursor);
+                if self.data.get_ent(self.cursor).is_none() {
+                    self.data.insert_tile(Tile::wall(), self.cursor);
+                }
                 Point::ORIGIN
             }
             event::KeyCode::Backspace => {
                 // If no entity, delete a wall if there is one (replace with floor).
-                if self.data.del_ent(self.cursor).is_none() {
+                if let Some(e) = self.data.del_ent(self.cursor) {
+                    if e.is_player() {
+                        self.pl_pos = None;
+                    }
+                } else {
                     if let Some(t) = self.data.get_map_mut(self.cursor) && t.blocking {
                         self.data.insert_tile(Tile::floor(), self.cursor);
                     }

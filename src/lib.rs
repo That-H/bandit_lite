@@ -7,6 +7,7 @@ use bn::Tile as Ti;
 use crossterm::{queue, style, cursor};
 use style::Stylize;
 use std::{fmt, io};
+use std::sync::RwLock;
 use io::Write;
 
 pub const TERMINAL_WID: u16 = 121;
@@ -20,6 +21,8 @@ pub static mut PLAYER: Point = Point::ORIGIN;
 pub static mut DIR: Point = Point::ORIGIN;
 /// Whether the puzzle is complete yet or not.
 pub static mut SHOULD_WIN: bool = false;
+/// List of moves that have been played.
+pub static MOVES: RwLock<Vec<entity::Move>> = RwLock::new(Vec::new());
 
 pub type StyleCh = style::StyledContent<char>;
 

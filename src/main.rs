@@ -63,46 +63,93 @@ fn main() {
 
     // Index of current puzzle in the puzzle list.
     let mut pzl_idx = 0;
+    // Index of custom_puzzles that we are in. If it is 69420, then we are doing standard puzzles.
+    let mut pack_idx = 69420;
     // Load completion state.
     let mut completion = loader::saver::load_pzl_save();
 
     // Initial scene when the full loop begins.
     let mut init_scene = 0;
 
+    // Whether we are in the editor.
+    let mut editor = false;
+
+    // Temporary puzzle for testing.
+    let mut temp_puzzle = loader::puzzles::Puzzle::new(String::from("_temp_"));
+
     'full: loop {
         let mut main_cont = windowed::Container::new();
         let mut ui_cont = windowed::ui::UiContainer::new();
         ui_cont.add_scene(scenes::main_menu());
         ui_cont.add_scene(scenes::puzzle_select(&pzls, &completion, true, false));
-        ui_cont.add_scene(scenes::end_screen());
-        ui_cont.add_scene(scenes::pause_screen());
+        ui_cont.add_scene(scenes::end_screen(false));
+        ui_cont.add_scene(scenes::pause_screen(false));
+        ui_cont.add_scene(scenes::end_screen(true));
+        ui_cont.add_scene(scenes::pause_screen(true));
         ui_cont.change_scene(init_scene);
 
         main_cont.add_win(windowed::Window::new(GAME_POS));
         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
-        match ui_cont.run() {
-            scenes::PLAY => (),
+
+        // Slight hack to make pausing during a playtest immediately return to the editor.
+        let res = if editor && init_scene == 5 { 
+            scenes::EDITOR
+        } else {
+            ui_cont.run()
+        };
+        match res {
+            scenes::PLAY => {
+                editor = false;
+                pack_idx = 69420;
+            }
             scenes::SAVE_AND_QUIT => break,
             scenes::EDITOR => {
-                loop {
-                    let pack_idx = scenes::presets::choose_pack(&mut custom_puzzles, &pzls);
+                let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                let mut skip = editor;
+                editor = true;
+                'editor: loop {
+                    let cur_pack_idx = if skip {
+                        Some(pack_idx)
+                    } else {
+                        scenes::presets::choose_pack(&mut custom_puzzles, &pzls)
+                    };
                     // User wants to edit a puzzle, so choose one.
-                    if let Some(idx) = pack_idx {
-                        let pzl_idx = scenes::presets::choose_puzzle(
-                            &mut custom_puzzles[idx],
-                            &completion,
-                            false,
-                            true
-                        );
-                        if let Some(idx2) = pzl_idx {
+                    if let Some(idx) = cur_pack_idx {
+                        let cur_pzl_idx = if skip {
+                            Some(pzl_idx)
+                        } else { 
+                            scenes::presets::choose_puzzle(
+                                &mut custom_puzzles[idx],
+                                &completion,
+                                false,
+                                true
+                            )
+                        };
+                        if let Some(idx2) = cur_pzl_idx {
                             // Stay in edit mode until the user quits.
                             loop {
-                                let res = scenes::presets::edit_puzzle(&mut main_cont, &ordered_objs, &mut custom_puzzles[idx].pzls[idx2]);
-                                // Want to save this.
-                                if res {
-                                    loader::saver::write_pzls(&custom_puzzles[idx]);
-                                } else {
-                                    break;
+                                if !skip {
+                                    temp_puzzle = custom_puzzles[idx].pzls[idx2].clone();
+                                }
+                                let res = scenes::presets::edit_puzzle(&mut main_cont, &ordered_objs, &mut temp_puzzle);
+                                match res {
+                                    // Want to save this.
+                                    scenes::presets::EditExit::Save => { 
+                                        custom_puzzles[idx].pzls[idx2] = temp_puzzle.clone();
+                                        skip = true;
+                                        loader::saver::write_pzls(&custom_puzzles[idx]); 
+                                    },
+                                    // Forget this.
+                                    scenes::presets::EditExit::Quit => {
+                                        skip = false;
+                                        break;
+                                    }
+                                    // Play the level.
+                                    scenes::presets::EditExit::Test => {
+                                        pack_idx = idx;
+                                        pzl_idx = idx2;
+                                        break 'editor;
+                                    }
                                 }
                             }
                         } else {
@@ -110,16 +157,26 @@ fn main() {
                         }
                     } else {
                         // User changed their mind about wanting to edit a puzzle.
+                        init_scene = 0;
                         continue 'full;
                     }
                 }
             }
-            p if p >= 2000 => pzl_idx = p as usize - 2000,
+            p if p >= 2000 => {
+                editor = false;
+                pzl_idx = p as usize - 2000;
+            }
             a => panic!("Unrecognised exit code {a}"),
         }
         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
         // Map used for the game.
-        let mut map = loader::puzzles::start_puzzle(&pzls.pzls[pzl_idx]);
+        let pzl = if editor {
+            &temp_puzzle
+        } else {
+            let pack = if pack_idx == 69420 { &pzls } else { &custom_puzzles[pack_idx] };
+            &pack.pzls[pzl_idx]
+        };
+        let mut map = loader::puzzles::start_puzzle(pzl);
 
         'game: loop {
             clear_events();
@@ -144,14 +201,24 @@ fn main() {
                         | event::KeyCode::Char('k') => Point::new(0, 1),
                         // Pause the game.
                         event::KeyCode::Esc => {
-                            ui_cont.change_scene(3);
-                            let mut restart = false;
+                            ui_cont.change_scene(if editor { 5 } else { 3 });
                             let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
 
                             match ui_cont.run() {
                                 scenes::PLAY => {
                                     display_all(&map, &mut main_cont, unsafe { PLAYER });
-                                },
+                                }
+                                scenes::RESET => {
+                                    let pzl = if editor {
+                                        &temp_puzzle
+                                    } else {
+                                        let pack = if pack_idx == 69420 { &pzls } else { &custom_puzzles[pack_idx] };
+                                        &pack.pzls[pzl_idx]
+                                    };
+                                    map = loader::puzzles::start_puzzle(pzl);
+                                    let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                                    display_all(&map, &mut main_cont, unsafe { PLAYER });
+                                }
                                 scenes::PUZZLE_SEL => {
                                     init_scene = 1;
                                     continue 'full;
@@ -159,26 +226,24 @@ fn main() {
                                 scenes::SAVE_AND_QUIT => {
                                     break 'full;
                                 }
-                                p if p >= 2000 => { 
-                                    pzl_idx = p as usize - 2000;
-                                    restart = true;
+                                scenes::EDITOR => {
+                                    init_scene = 5;
+                                    continue 'full;
+                                }
+                                scenes::MAIN_MENU => {
+                                    init_scene = 0;
+                                    editor = false;
+                                    continue 'full;
                                 }
                                 a => panic!("Unrecognised exit code {a}"),
                             }
-                            if restart {
-                                if let Some(pzl) = pzls.pzls.get(pzl_idx) {
-                                    map = loader::puzzles::start_puzzle(pzl);
-                                    let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
-                                    continue 'game;
-                                } else {
-                                    init_scene = 0;
-                                    continue 'full;
-                                }
-                            } else { 
-                                continue;
-                            }
+                            continue;
                         },
-                        _ => Point::ORIGIN,
+                        // Undo.
+                        event::KeyCode::Char('u') => {
+                            Point::ORIGIN
+                        }
+                        _ => continue,
                     };
 
                     unsafe { DIR = mv }
@@ -192,9 +257,18 @@ fn main() {
             unsafe {
                 // Only true at this point when the puzzle is won, so record this.
                 if SHOULD_WIN {
-                    completion.insert(pzls.pzls[pzl_idx].id);
+                    let id = if editor {
+                        temp_puzzle.id
+                    } else {
+                        pzls.pzls[pzl_idx].id
+                    };
+                    completion.insert(id);
+                    if editor {
+                        init_scene = 4;
+                        continue 'full;
+                    }
                     ui_cont.change_scene(2);
-                    let mut restart = false;
+                    let restart;
                     let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
 
                     match ui_cont.run() {

@@ -4,7 +4,7 @@ use std::collections::HashSet;
 use std::fs;
 use std::io::{self, ErrorKind, Write};
 
-use crate::{Point, loader};
+use crate::loader;
 use loader::puzzles;
 
 const QUAL: &str = "";
@@ -78,17 +78,7 @@ pub fn write_pzls(pack: &puzzles::PuzzlePack) -> Result<(), puzzles::PzlIOErr> {
     for pzl in pack.pzls.iter() {
         data.push_str(&pzl.name);
         data.push('\n');
-        for y in (0..pzl.data.hgt as i32).rev() {
-            for x in 0..=pzl.data.wid as i32 {
-                let p = Point::new(x, y);
-                if let Some(e) = pzl.data.get_ent(p) {
-                    data.push_str(&e.file_repr());
-                } else if let Some(t) = pzl.data.get_map(p) {
-                    data.push_str(&t.file_repr());
-                }
-            }
-            data.push('\n');
-        }
+        data.push_str(&pzl.file_repr());
         data.push('\n');
     }
 
