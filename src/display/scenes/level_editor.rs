@@ -1,6 +1,8 @@
 //! User friendly widget for creating puzzles.
 
 use crate::entity::IMMOVABLE_CLR;
+use loader::puzzles::ts::BanditObj;
+use loader::ObjList;
 
 use super::*;
 use crossterm::event;
@@ -11,7 +13,7 @@ const CURSOR_CLR: style::Color = style::Color::DarkCyan;
 /// Allows the user to create a puzzle and save it locally.
 pub struct LevelEditor<'a> {
     data: &'a mut bn::Map<Ent>,
-    objs: &'a Vec<Vec<Ent>>,
+    objs: &'a ObjList,
     cursor: Point,
     /// Current object index into objs.
     pub cur_idx: usize,
@@ -23,7 +25,7 @@ pub struct LevelEditor<'a> {
 
 impl<'a> LevelEditor<'a> {
     /// Create a new level editor.
-    pub fn new(objs: &'a Vec<Vec<Ent>>, data: &'a mut bn::Map<Ent>) -> Self {
+    pub fn new(objs: &'a ObjList, data: &'a mut bn::Map<Ent>) -> Self {
         let editor = Self {
             objs,
             cursor: Point::new(1, 1),
@@ -72,7 +74,7 @@ impl<'a> LevelEditor<'a> {
                         };
                         *style_ch.content()
                     } else {
-                        *self.get_obj().ch.content() 
+                        *self.get_cur_ch().content()
                     };
                     ch = content.on(CURSOR_CLR);
                 }
@@ -104,8 +106,16 @@ impl<'a> LevelEditor<'a> {
     }
 
     /// Get the current object to use.
-    fn get_obj(&self) -> &Ent {
+    fn get_obj(&self) -> &BanditObj {
         &self.objs[self.cur_idx][self.cur_rot]
+    }
+
+    /// Get the representation of the current object.
+    fn get_cur_ch(&self) -> &StyleCh {
+        match self.get_obj() {
+            BanditObj::En(e) => &e.ch,
+            BanditObj::Tile(t) => &t.ch,
+        }
     }
 
     /// Increase this rotation, ensuring it does not end up out of bounds.
@@ -124,6 +134,20 @@ impl<'a> LevelEditor<'a> {
             }
         }
 
+    }
+
+    /// Place the current object at the cursor.
+    fn place(&mut self) {
+        match self.get_obj() {
+            BanditObj::En(e) => {
+                self.data.insert_entity(e.clone(), self.cursor);
+                self.data.insert_tile(Tile::floor(), self.cursor);
+            },
+            BanditObj::Tile(t) => {
+                self.data.insert_tile(t.clone(), self.cursor);
+                self.data.del_ent(self.cursor);
+            },
+        }
     }
 
     /// Do something with a key event.
@@ -164,19 +188,8 @@ impl<'a> LevelEditor<'a> {
                 if self.cur_idx == 0 && self.pl_pos.is_some() {
                     return EditEvent::Null;
                 }
-                if let Some(t) = self.data.get_map(self.cursor) && !t.blocking {
-                    self.data.insert_entity(self.get_obj().clone(), self.cursor);
-                    if self.cur_idx == 0 && self.pl_pos.is_none() {
-                        self.pl_pos = Some(self.cursor);
-                    }
-                }
+                self.place();
                 self.just_deleted = false;
-                Point::ORIGIN
-            }
-            event::KeyCode::Char(';') => {
-                if self.data.get_ent(self.cursor).is_none() {
-                    self.data.insert_tile(Tile::wall(), self.cursor);
-                }
                 Point::ORIGIN
             }
             event::KeyCode::Backspace => {
@@ -186,9 +199,7 @@ impl<'a> LevelEditor<'a> {
                         self.pl_pos = None;
                     }
                 } else {
-                    if let Some(t) = self.data.get_map_mut(self.cursor) && t.blocking {
-                        self.data.insert_tile(Tile::floor(), self.cursor);
-                    }
+                    self.data.insert_tile(Tile::floor(), self.cursor);
                 }
                 self.just_deleted = true;
                 Point::ORIGIN

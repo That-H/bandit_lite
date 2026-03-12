@@ -3,9 +3,11 @@
 use super::*;
 use std::fs;
 use std::io::BufRead;
+use std::ops;
 
 pub mod puzzles;
 pub mod saver;
+use puzzles::ts::BanditObj;
 
 const ASSETS_DIR: &str = "assets";
 const OBJS: &str = "objs.txt";
@@ -48,10 +50,10 @@ pub fn load_custom_pzls(default_tile: &Tile, ts: &puzzles::ts::TileSet) -> Vec<p
 }
 
 /// Load some objects from the given file.
-pub fn load_objs() -> Vec<Vec<Ent>> {
+pub fn load_objs() -> ObjList {
     let mut chs = Vec::new();
     let mut exprs = vec![port::Expr::Null; 8];
-    let mut ents = Vec::new();
+    let mut ents = ObjList::new();
     let assets = get_assets_path();
 
     for line in read_lines(assets.join(OBJS)).unwrap() {
@@ -87,13 +89,53 @@ pub fn load_objs() -> Vec<Vec<Ent>> {
                 obj.ch = ch;
                 this.push(obj.clone());
             }
-            ents.push(this);
+            ents.add_entities(this);
             chs = Vec::new();
             exprs = vec![port::Expr::Null; 8];
         }
     }
 
     ents
+}
+
+/// A list of objects.
+#[derive(Clone, Debug)]
+pub struct ObjList(pub Vec<Vec<BanditObj>>);
+
+impl ObjList {
+    /// Create an empty object list.
+    pub fn new() -> Self {
+        Self(Vec::new())
+    }
+
+    /// Add a single tile to the end of the list.
+    pub fn add_tile(&mut self, tile: Tile) {
+        self.0.push(vec![BanditObj::Tile(tile)]);
+    }
+    
+    /// Add a single entity to the end of the list.
+    pub fn add_entity(&mut self, ent: Ent) {
+        self.0.push(vec![BanditObj::En(ent)]);
+    }
+
+    /// Add some entities to the list, assuming they are rotations of each other.
+    pub fn add_entities<I: IntoIterator<Item=Ent>>(&mut self, ents: I) {
+        self.0.push(ents.into_iter().map(BanditObj::from).collect())
+    }
+}
+
+impl ops::Deref for ObjList {
+    type Target = Vec<Vec<BanditObj>>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
+}
+
+impl ops::DerefMut for ObjList {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.0
+    }
 }
 
 /// Return a buffered reader over the lines of a file.

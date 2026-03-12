@@ -19,6 +19,26 @@ impl BanditObj {
             Self::En(en) => en,
         }
     }
+
+    /// Get the character of this object.
+    pub fn get_ch(&self) -> &StyleCh {
+        match self {
+            Self::Tile(t) => &t.ch,
+            Self::En(e) => &e.ch,
+        }
+    }
+}
+
+impl From<Ent> for BanditObj {
+    fn from(value: Ent) -> Self {
+        Self::En(value)
+    }
+}
+
+impl From<Tile> for BanditObj {
+    fn from(value: Tile) -> Self {
+        Self::Tile(value)
+    }
 }
 
 /// Mapping of characters to tiles or entities.

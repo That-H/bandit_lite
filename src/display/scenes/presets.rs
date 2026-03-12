@@ -1,7 +1,7 @@
 //! Uses ui scenes to perform common tasks.
 
 use super::*;
-use loader::puzzles;
+use loader::{ObjList, puzzles};
 use level_editor::EditEvent;
 use crossterm::{execute, event, terminal};
 
@@ -93,19 +93,20 @@ pub fn choose_pack(packs: &mut Vec<puzzles::PuzzlePack>, std_pzls: &puzzles::Puz
 /// Edit a puzzle using the LevelEditor.
 pub fn edit_puzzle(
     cont: &mut windowed::Container<StyleCh>,
-    objs: &Vec<Vec<Ent>>,
+    objs: &ObjList,
     pzl: &mut puzzles::Puzzle,
 ) -> EditExit {
     let mut handle = io::stdout();
     let mut ui = ui::UiContainer::new();
     let mut scene = ui::Scene::new(level_editor::DEFAULT_POS - Point::new(18, 1), 4, 7);
 
-    for (n, obj) in objs.iter().enumerate() {
+    for (n, obj) in objs.0.iter().enumerate() {
         let obj = &obj[0];
-        let clr = obj.ch.style().foreground_color.unwrap();
+        let ch = obj.get_ch();
+        let clr = ch.style().foreground_color.unwrap();
         let pos = Point::new(1, n as i32 + 1);
         let button = basic_button()
-            .set_txt(String::from(*obj.ch.content()))
+            .set_txt(String::from(*ch.content()))
             .set_clr(clr)
             .set_hover_clr(clr)
             .set_screen_pos(pos)

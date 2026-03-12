@@ -1,6 +1,7 @@
 #![allow(unused_must_use)]
 
 use bandit_lite::{display::display_all, loader::puzzles::ts::TileSet, *};
+use loader::puzzles::ts::BanditObj;
 use crossterm::{execute, terminal, event, style, cursor};
 use style::Stylize;
 use std::{time, io};
@@ -25,12 +26,12 @@ fn main() {
 
     // Objects we have.
     let mut ordered_objs = loader::load_objs();
-    ordered_objs.insert(0, vec![Ent::player()]);
+    ordered_objs.insert(0, vec![BanditObj::from(Ent::player())]);
     
     // Add goals and lasers to the object list.
     for i in 1..8 {
         let clr = beam::Clr::from(i);
-        ordered_objs.push(vec![Ent::goal(clr)]);
+        ordered_objs.add_entity(Ent::goal(clr));
         let mut lsrs = Vec::new();
         for p in 0..8 {
             // This just makes sure the first rotation is not diagonal as orthogonal orientations
@@ -38,22 +39,22 @@ fn main() {
             let p = (p + 1) % 8;
             lsrs.push(Ent::laser(beam::PORT_DIRS[p], clr));
         }
-        ordered_objs.push(lsrs);
+        ordered_objs.add_entities(lsrs);
     }
+    
+    // Add tiles to the object list.
+    let default_tile = Tile::new('.'.white(), false, false);
+    ordered_objs.add_tile(default_tile.clone());
+    ordered_objs.add_tile(Tile::new('#'.white(), true, true));
 
     let mut ts = TileSet::new();
     
     // Add all objects to the tile set.
     for ls in ordered_objs.iter() {
-        for ent in ls {
-            ts.add_entity(ent.clone());
+        for obj in ls {
+            ts.insert(obj.clone());
         }
     }
-    
-    // Add tiles to the tile set.
-    let default_tile = Tile::new('.'.white(), false, false);
-    ts.add_tile(default_tile.clone());
-    ts.add_tile(Tile::new('#'.white(), true, true));
 
     // Load puzzles in.
     let pzls = loader::load_standard_pzls(&default_tile, &ts);

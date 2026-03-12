@@ -38,7 +38,7 @@ pub mod port;
 pub mod loader;
 
 /// A single tile that may or may not block movement.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq)]
 pub struct Tile {
     /// The character used to represent this tile.
     pub ch: StyleCh,
