@@ -6,20 +6,12 @@ pub const IMMOVABLE_CLR: style::Color = style::Color::DarkGrey;
 
 /// A move that the player did.
 #[derive(Clone, Copy, Debug)]
-pub struct Move {
-    /// Direction of the move.
-    pub dir: Point,
-    /// Whether it pushed anything or not.
-    pub push: bool
-}
+pub struct Move(pub Point);
 
 impl Move {
     /// Create a move.
-    pub const fn new(dir: Point, push: bool) -> Self {
-        Self {
-            dir, 
-            push,
-        }
+    pub const fn new(dir: Point) -> Self {
+        Self(dir)
     }
 }
 /// Encodes the behaviour of an entity.
@@ -166,23 +158,7 @@ impl bn::Entity for Ent {
 
         match &self.tp {
             EntType::Player => unsafe { 
-                // We undo.
-                if DIR == Point::ORIGIN {
-                    if let Some(mv) = MOVES.write().unwrap().pop() {
-                        let nx = pos - mv.dir;
-                        cmd.queue(bn::Cmd::new_here().move_to(nx));
-                        PLAYER = nx;
-                        if mv.push {
-                            cmd.queue(bn::Cmd::new_on(pos + mv.dir).move_to(pos));
-                        }
-                        return;
-                    } else {
-                        // Nothing to undo.
-                        return;
-                    }
-                }
                 let nx = PLAYER + DIR;
-                let mut pushed = false;
                 if Ent::walkable(&cmd.get_map(nx)) {
                     // Push the entity in our way if possible.
                     if let Some(e) = cmd.get_ent(nx) {
@@ -191,13 +167,12 @@ impl bn::Entity for Ent {
                         // walkable.
                         if Ent::walkable(&cmd.get_map(nx2)) && cmd.get_ent(nx2).is_none() && e.movable {
                             cmd.queue(bn::Cmd::new_on(nx).move_to(nx2));
-                            pushed = true;
                         } else {
                             return;
                         }
                     }
                     cmd.queue(bn::Cmd::new_here().displace(DIR));
-                    MOVES.write().unwrap().push(Move::new(DIR, pushed));
+                    MOVES.write().unwrap().push(Move::new(DIR));
                     PLAYER = nx;
                 }
             },

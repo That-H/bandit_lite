@@ -186,3 +186,21 @@ impl bn::Vfx for Vfx {
     }
 }
 
+/// Make the move on the map.
+pub fn mk_move(map: &mut bn::Map<Ent>) {
+    map.update_vfx();
+
+    while map.update() {}
+
+    let mut to_reset = Vec::new();
+
+    for (&p, _e) in map.get_entities() {
+        to_reset.push(p);
+    }
+
+    for p in to_reset {
+        map.get_ent_mut(p).unwrap().updated = false;
+    }
+
+    beam::INPTS.write().unwrap().clear();
+}

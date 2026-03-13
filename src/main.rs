@@ -1,6 +1,6 @@
 #![allow(unused_must_use)]
 
-use bandit_lite::{display::display_all, loader::puzzles::ts::TileSet, *};
+use bandit_lite::{display::display_all, loader::puzzles::{start_puzzle, ts::TileSet}, *};
 use loader::puzzles::ts::BanditObj;
 use crossterm::{execute, terminal, event, style, cursor};
 use style::Stylize;
@@ -240,9 +240,26 @@ fn main() {
                             }
                             continue;
                         },
-                        // Undo.
+                        // Undo. Pretty much just resets the map and replays all the moves apart
+                        // from the last one on to it.
                         event::KeyCode::Char('u') => {
-                            Point::ORIGIN
+                            let pzl = if editor {
+                                &temp_puzzle
+                            } else {
+                                let pack = if pack_idx == 69420 { &pzls } else { &custom_puzzles[pack_idx] };
+                                &pack.pzls[pzl_idx]
+                            };
+                            let mut write = MOVES.write().unwrap();
+                            write.pop();
+                            let mvs: Vec<_> = write.iter().copied().collect();
+                            drop(write);
+                            map = start_puzzle(pzl);
+                            for mv in mvs {
+                                unsafe { DIR = mv.0 }
+                                mk_move(&mut map);
+                            }
+                            display::display_all(&map, &mut main_cont, unsafe { PLAYER });
+                            continue;
                         }
                         _ => continue,
                     };
@@ -252,9 +269,8 @@ fn main() {
                 }
             }
 
-            map.update_vfx();
+            mk_move(&mut map);
 
-            while map.update() {}
             unsafe {
                 // Only true at this point when the puzzle is won, so record this.
                 if SHOULD_WIN {
@@ -302,17 +318,6 @@ fn main() {
                 }
                 SHOULD_WIN = true;
             }
-            let mut to_reset = Vec::new();
-
-            for (&p, _e) in map.get_entities() {
-                to_reset.push(p);
-            }
-
-            for p in to_reset {
-                map.get_ent_mut(p).unwrap().updated = false;
-            }
-
-            beam::INPTS.write().unwrap().clear();
         }
     }
     
