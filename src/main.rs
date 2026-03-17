@@ -27,6 +27,12 @@ fn main() {
     // Objects we have.
     let mut ordered_objs = loader::load_objs();
     ordered_objs.insert(0, vec![BanditObj::from(Ent::player())]);
+
+    // Make a button.
+    ordered_objs.add_tile(Tile::button());
+    // Add both doors.
+    ordered_objs.add_tile(Tile::door(true));
+    ordered_objs.add_tile(Tile::door(false));
     
     // Add goals and lasers to the object list.
     for i in 1..8 {
@@ -183,6 +189,8 @@ fn main() {
             clear_events();
 
             // Display the game window.
+            end_frame(&mut map);
+            start_frame(&mut map);
             display::display_all(&map, &mut main_cont, unsafe { PLAYER });
 
             while let event::Event::Key(ke) = event::read().expect("what") {
@@ -256,7 +264,9 @@ fn main() {
                             map = start_puzzle(pzl);
                             for mv in mvs {
                                 unsafe { DIR = mv.0 }
+                                start_frame(&mut map);
                                 mk_move(&mut map);
+                                end_frame(&mut map);
                             }
                             display::display_all(&map, &mut main_cont, unsafe { PLAYER });
                             continue;
@@ -270,6 +280,7 @@ fn main() {
             }
 
             mk_move(&mut map);
+            display::display_all(&map, &mut main_cont, unsafe { PLAYER });
 
             unsafe {
                 // Only true at this point when the puzzle is won, so record this.
@@ -316,7 +327,6 @@ fn main() {
                         }
                     }
                 }
-                SHOULD_WIN = true;
             }
         }
     }

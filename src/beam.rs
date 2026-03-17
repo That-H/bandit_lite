@@ -201,7 +201,7 @@ impl Beam {
             if let Some(t) = cmd.get_map(cur) && !t.opaque {
                 // An entity might change the beam, so handle this.
                 if let Some(e) = cmd.get_ent(cur) {
-                    let q = if let entity::EntType::Goal(clr) = e.tp && clr == self.clr {
+                    let activate = if let entity::EntType::Goal(clr) = e.tp && clr == self.clr {
                         true
                     } else {
                         false
@@ -214,10 +214,8 @@ impl Beam {
                             bm.prop_internal(cmd, cur, inpts);
                         }
                     }
-                    if q {
-                        cmd.queue(bn::Cmd::new_on(cur).modify_entity(Box::new(
-                            |e: &mut Ent| e.updated = true
-                        )));
+                    if activate && let Some(e) = cmd.get_ent(cur) {
+                        e.activate(cmd, entity::ActSource::Laser, cur);
                     }
                     break;
                 } else {

@@ -14,6 +14,110 @@ impl Move {
         Self(dir)
     }
 }
+
+/// A possible source of activation for an entity or tile.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ActSource {
+    /// An object such as a button.
+    Obj,
+    /// A laser beam.
+    Laser,
+    /// A player or an object moves on to this tile.
+    WalkOn,
+    /// A player walks off of this tile.
+    WalkOff,
+    /// A player or an object is still on this tile at the start of the frame.
+    StayOn,
+    /// Frame ends.
+    FrameEnd,
+    /// Frame begins.
+    FrameStart,
+}
+
+/// A possible effect of being activated.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub enum ActEffect {
+    /// Propagate this activation to surrounding tiles/entities.
+    Prop,
+    /// Invert the current active state.
+    Inv,
+    /// Set the current active state to true.
+    MkActive,
+    /// Set the previous active state to the current one, then set the current one to false.
+    Reset,
+    /// Win the puzzle.
+    Win,
+    /// Does nothing.
+    Null,
+}
+
+/// Handles an activation from a source.
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
+pub struct ActHandler {
+    src: ActSource,
+    ef: ActEffect,
+}
+
+impl ActHandler {
+    /// Create a handler for the source that does the effect.
+    pub fn new(src: ActSource, ef: ActEffect) -> Self {
+        Self {
+            src,
+            ef,
+        }
+    }
+
+    /// Handle an activation from the source. Requires the map the object is in and its position. 
+    pub fn activate(&self, map: &bn::Map<Ent>, src: ActSource, pos: Point) -> Vec<bn::Cmd<Ent>> {
+        let mut cmds = Vec::new();
+        if src == self.src {
+            match self.ef {
+                ActEffect::Inv => {
+                    cmds.push(bn::Cmd::new_on(pos).modify_entity(Box::new(|e: &mut Ent| {
+                        e.active = !e.active; 
+                    })));
+                    cmds.push(bn::Cmd::new_on(pos).modify_tile(Box::new(|t: &mut Tile| {
+                        t.active = !t.active; 
+                    })));
+                }
+                ActEffect::MkActive => {
+                    cmds.push(bn::Cmd::new_on(pos).modify_entity(Box::new(|e: &mut Ent| {
+                        e.active = true;
+                    })));
+                    cmds.push(bn::Cmd::new_on(pos).modify_tile(Box::new(|t: &mut Tile| {
+                        t.active = true;
+                    })));
+                }
+                ActEffect::Prop => {
+                    for p in pos.get_all_adjacent_diagonal() {
+                        if let Some(e) = map.get_ent(p) {
+                            cmds.append(&mut e.activate(map, ActSource::Obj, p));
+                        }
+                        if let Some(t) = map.get_map(p) {
+                            cmds.append(&mut t.activate(map, ActSource::Obj, p));
+                        }
+                    }
+                }
+                ActEffect::Win => {
+                    unsafe {
+                        SHOULD_WIN = true;
+                    }
+                }
+                ActEffect::Reset => {
+                    cmds.push(bn::Cmd::new_on(pos).modify_entity(Box::new(|e: &mut Ent| {
+                        e.active = false;
+                    })));
+                    cmds.push(bn::Cmd::new_on(pos).modify_tile(Box::new(|t: &mut Tile| {
+                        t.active = false;
+                    })));
+                }
+                ActEffect::Null => (),
+            }
+        }
+        cmds
+    }
+}
+
 /// Encodes the behaviour of an entity.
 #[derive(Clone, Debug)]
 pub enum EntType {
@@ -23,8 +127,8 @@ pub enum EntType {
     Laser(beam::Beam),
     /// Uses its inputs to potentially create an output.
     Obj(port::PortGrp),
-    /// Takes an input of the given colour to any port. When this occurs for all of this type of
-    /// object present, the player completes the puzzle.
+    /// Takes an input of the given colour to any port. This activates all surrounding
+    /// tiles/entities.
     Goal(beam::Clr),
 }
 
@@ -39,17 +143,16 @@ pub struct Ent {
     pub updated: bool,
     /// True if this entity can be pushed.
     pub movable: bool,
+    /// True if this entity is being activated this frame.
+    pub active: bool,
+    /// Activation handlers of this entity.
+    pub handlers: Vec<ActHandler>,
 }
 
 impl Ent {
     /// Create an entity that is the player.
     pub fn player() -> Self {
-        Self {
-            ch: '@'.white(),
-            tp: EntType::Player,
-            updated: false,
-            movable: true,
-        }
+        Self::default()
     }
 
     /// Create an entity that fires a laser.
@@ -57,8 +160,7 @@ impl Ent {
         Self {
             ch: DIAG_ARROWS[beam::port_num(-dir)].with(clr.into()),
             tp: EntType::Laser(beam::Beam::new(clr, dir)),
-            updated: false,
-            movable: true,
+            ..Default::default()
         }
     }
 
@@ -67,8 +169,7 @@ impl Ent {
         Self {
             ch: 'O'.with(clr.into()),
             tp: EntType::Goal(clr),
-            updated: false,
-            movable: true,
+            ..Default::default()
         }
     }
 
@@ -81,8 +182,7 @@ impl Ent {
                     exprs.into_iter()
                 )
             ),
-            updated: false,
-            movable: true,
+            ..Default::default()
         }
     }
 
@@ -136,6 +236,16 @@ impl Ent {
 
         string
     }
+
+    /// Do the effect of activating this entity, using the commands instance and the position of
+    /// this entity.
+    pub fn activate(&self, map: &bn::Map<Ent>, src: ActSource, pos: Point) -> Vec<bn::Cmd<Ent>> {
+        let mut cmds = Vec::new();
+        for handle in self.handlers.iter() {
+            cmds.append(&mut handle.activate(map, src, pos));
+        }
+        cmds
+    }
 }
 
 impl bn::Entity for Ent {
@@ -167,9 +277,15 @@ impl bn::Entity for Ent {
                         // walkable.
                         if Ent::walkable(&cmd.get_map(nx2)) && cmd.get_ent(nx2).is_none() && e.movable {
                             cmd.queue(bn::Cmd::new_on(nx).move_to(nx2));
+                            if let Some(t) = cmd.get_map(nx2) {
+                                cmd.queue_many(t.activate(cmd, ActSource::WalkOn, nx2));
+                            }
                         } else {
                             return;
                         }
+                    }
+                    if let Some(t) = cmd.get_map(nx) {
+                        cmd.queue_many(t.activate(cmd, ActSource::WalkOn, nx));
                     }
                     cmd.queue(bn::Cmd::new_here().displace(DIR));
                     MOVES.write().unwrap().push(Move::new(DIR));
@@ -178,11 +294,6 @@ impl bn::Entity for Ent {
             },
             EntType::Laser(bm) => {
                 bm.propagate(cmd, pos);
-            }
-            EntType::Goal(_) => {
-                unsafe { 
-                    SHOULD_WIN = false;
-                }
             }
             // Anyone else has nothing to worry about.
             _ => (),
@@ -199,6 +310,19 @@ impl bn::Entity for Ent {
                 EntType::Laser(_) => 3,
                 EntType::Goal(_) => 2,
             }
+        }
+    }
+}
+
+impl Default for Ent {
+    fn default() -> Self {
+        Self {
+            ch: '@'.white(),
+            tp: EntType::Player,
+            updated: false,
+            movable: true,
+            active: false,
+            handlers: Vec::new(),
         }
     }
 }

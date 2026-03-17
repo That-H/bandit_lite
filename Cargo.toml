@@ -1,10 +1,10 @@
 [package]
 name = "bandit_lite"
-version = "0.2.3"
+version = "0.3.0"
 edition = "2024"
 
 [dependencies]
-bandit = { git = "https://github.com/That-H/bandit", tag = "0.4.6", features = [] }
+bandit = { git = "https://github.com/That-H/bandit", tag = "0.4.7", features = [] }
 crossterm = "0.29.0"
 directories = "6.0.0"
 md5 = "0.8.0"

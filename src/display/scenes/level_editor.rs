@@ -94,8 +94,8 @@ impl<'a> LevelEditor<'a> {
                 let tl = if x == 0 || x == self.data.wid-1 || y == 0 || y == self.data.hgt-1 {
                     Tile::wall()
                 } else {
-                    // Don't overwrite my walls with floors!
-                    if let Some(t) = self.data.get_map(p) && t.blocking {
+                    // Don't overwrite my useful tiles with floors!
+                    if self.data.get_map(p).is_some() {
                         continue;
                     }
                     Tile::floor()
@@ -140,12 +140,31 @@ impl<'a> LevelEditor<'a> {
     fn place(&mut self) {
         match self.get_obj() {
             BanditObj::En(e) => {
+                // Set player position to none if we overwrite the player.
+                let pl_over = if let Some(e) = self.data.get_ent(self.cursor) && e.is_player() {
+                    true
+                } else {
+                    false
+                };
+
+                // Place the entity.
                 self.data.insert_entity(e.clone(), self.cursor);
+                if pl_over {
+                    self.pl_pos = None;
+                }
+                // Set player position if we place one.
+                if self.cur_idx == 0 {
+                    self.pl_pos = Some(self.cursor);
+                }
                 self.data.insert_tile(Tile::floor(), self.cursor);
             },
             BanditObj::Tile(t) => {
                 self.data.insert_tile(t.clone(), self.cursor);
-                self.data.del_ent(self.cursor);
+                
+                // If we overwrite the player, delete the player position.
+                if let Some(e) = self.data.del_ent(self.cursor) && e.is_player() {
+                    self.pl_pos = None;
+                }
             },
         }
     }
