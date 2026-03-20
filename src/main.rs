@@ -295,7 +295,6 @@ fn main() {
             }
 
             mk_move(&mut map);
-            display::display_all(&map, &mut main_cont, unsafe { PLAYER });
 
             unsafe {
                 // Only true at this point when the puzzle is won, so record this.
