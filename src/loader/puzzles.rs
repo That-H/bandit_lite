@@ -142,12 +142,12 @@ fn create_map(data: &str, tile_set: &ts::TileSet, default_tile: &Tile) -> Result
 
     for (y, ln) in data.lines().rev().enumerate() {
         max_y += 1;
-        let mut clr = beam::Clr::Black;
+        let mut clr = style::Color::Black;
         let mut movable = true;
         for (x, ch) in ln.chars().enumerate() {
             max_x = std::cmp::max(max_x, x / 2 + 1);
             if x % 2 == 0 {
-                clr = ch.to_ascii_lowercase().try_into()?;
+                clr = map_ch(ch.to_ascii_lowercase())?;
                 if ch.is_uppercase() {
                     movable = false;
                 }
@@ -157,7 +157,7 @@ fn create_map(data: &str, tile_set: &ts::TileSet, default_tile: &Tile) -> Result
             let pos = Point::new((x / 2) as i32, y as i32);
 
             // Try to map this character to an object.
-            if let Some(obj) = tile_set.map(ch.with(clr.into())) {
+            if let Some(obj) = tile_set.map(ch.with(clr)) {
                 match obj {
                     ts::BanditObj::Tile(t) => map.insert_tile(t.clone(), pos),
                     ts::BanditObj::En(en) => {
@@ -183,6 +183,42 @@ fn create_map(data: &str, tile_set: &ts::TileSet, default_tile: &Tile) -> Result
     builder.id.replace(u128::from_be_bytes(*md5::compute(data.as_bytes())));
     builder.data.replace(map);
     Ok(builder)
+}
+
+/// Return the colour associated with the character. Used in puzzle loading.
+fn map_ch(ch: char) -> Result<style::Color, PzlIOErr> {
+    // If we can use one of the beam::Clr colours, do.
+    if let Ok(clr) = beam::Clr::try_from(ch) {
+        return Ok(clr.into());
+    }
+    Ok(match ch {
+        'a' => style::Color::DarkRed,
+        'd' => style::Color::DarkYellow,
+        'e' => style::Color::DarkGreen,
+        'f' => style::Color::DarkCyan,
+        'h' => style::Color::DarkBlue,
+        'i' => style::Color::DarkMagenta,
+        'j' => style::Color::Grey,
+        _ => return Err(PzlIOErr::InvalidFormat),
+    })
+}
+
+/// Returns the character associated with the colour.
+pub fn map_clr(clr: style::Color) -> Result<char, PzlIOErr> {
+    // If we can use one of the beam::Clr colours, do.
+    if let Ok(ch) = beam::Clr::try_from(clr) {
+        return Ok(char::from(ch));
+    }
+    Ok(match clr {
+        style::Color::DarkRed => 'a',
+        style::Color::DarkYellow => 'd',
+        style::Color::DarkGreen => 'e',
+        style::Color::DarkCyan => 'f',
+        style::Color::DarkBlue => 'h',
+        style::Color::DarkMagenta => 'i',
+        style::Color::Grey => 'j',
+        _ => return Err(PzlIOErr::InvalidFormat),
+    })
 }
 
 /// Uses the given tileset to turn a string into a puzzle. Unknown characters will cause an error

@@ -1,3 +1,5 @@
+#![allow(static_mut_refs)]
+
 pub use bandit as bn;
 pub use bn::{Point, windowed};
 
@@ -32,7 +34,7 @@ pub mod beam;
 
 pub mod entity;
 pub use entity::Ent;
-use entity::{ActHandler, ActSource, ActEffect};
+use entity::{ActHandler, ActSource, ActEffect, Cond};
 
 pub mod port;
 
@@ -41,6 +43,9 @@ pub mod loader;
 const BUTTON_CH: char = '◻';
 const OPEN_DOOR: char = '⸬';
 const CLOSED_DOOR: char = '█';
+const LEVER_ON: char = 'Δ';
+const LEVER_OFF: char = '𝈔';
+const EXIT_CH: char = '!';
 
 /// A state of a tile.
 #[derive(Clone, Debug, PartialEq)]
@@ -145,7 +150,7 @@ impl Tile {
     /// Return the representation of this tile as it would be in a file.
     pub fn file_repr(&self) -> String {
         let mut string = String::new();
-        let ch1: char = beam::Clr::from(self.ch.style().foreground_color.unwrap()).into();
+        let ch1: char = loader::puzzles::map_clr(self.ch.style().foreground_color.unwrap()).unwrap();
         string.push(ch1);
         string.push(*self.ch.content());
 
@@ -184,6 +189,7 @@ impl Tile {
             .with_handlers(
                 vec![
                     ActHandler::new(ActSource::WalkOn, ActEffect::Prop),
+                    ActHandler::new(ActSource::PlWalkOn, ActEffect::Prop),
                     ActHandler::new(ActSource::StayOn, ActEffect::Prop),
                 ]
             )
@@ -203,9 +209,58 @@ impl Tile {
         dr.with_handlers(
             vec![
                 ActHandler::new(ActSource::Obj, ActEffect::MkActive),
-                ActHandler::new(ActSource::FrameStart, ActEffect::Reset),
+                ActHandler::new(ActSource::FrameEnd, ActEffect::Reset),
             ]
         )
+    }
+
+    /// Create a standard one way door.
+    pub fn single_door() -> Self {
+        // Pretty much take the door and mess with it a bit.
+        let mut dr = Self::door(true).with_handlers(vec![
+            ActHandler::new(ActSource::PlWalkOn, ActEffect::MkActive)
+        ]);
+
+        dr.inact.ch = OPEN_DOOR.red();
+        let Some(st) = dr.act.as_mut() else { unreachable!() };
+        st.ch = CLOSED_DOOR.red();
+
+        dr
+    }
+
+    /// Create a standard lever.
+    pub fn lever(is_on: bool) -> Self {
+        let on = TileState::new(LEVER_ON.white(), false, false);
+        let off = TileState::new(LEVER_OFF.white(), false, false);
+
+        let lever = if is_on {
+            Tile::from(on).join(off)
+        } else {
+            Tile::from(off).join(on)
+        };
+
+        let mut cond = Cond::TActive;
+        if is_on {
+            cond = cond.not();
+        }
+
+        let handlers = vec![
+            ActHandler::new(ActSource::WalkOn, ActEffect::Inv),
+            ActHandler::new(ActSource::PlWalkOn, ActEffect::Inv),
+            ActHandler::new(ActSource::WalkOn, cond.clone().cond_ef(ActEffect::Prop)),
+            ActHandler::new(ActSource::PlWalkOn, cond.clone().cond_ef(ActEffect::Prop)),
+            ActHandler::new(ActSource::FrameStart, cond.cond_ef(ActEffect::Prop)),
+        ];
+
+        lever.with_handlers(handlers)
+    }
+
+    /// Create a standard exit.
+    pub fn exit() -> Self {
+        Tile::new(EXIT_CH.green(), false, false)
+            .with_handlers(vec![
+                ActHandler::new(ActSource::PlWalkOn, ActEffect::Win)
+            ])
     }
 
     /// Do the effect of activating this tile, using the map and the position of
@@ -336,8 +391,6 @@ impl bn::Vfx for Vfx {
 
 /// Start the frame.
 pub fn start_frame(map: &mut bn::Map<Ent>) {
-    map.update_vfx();
-
     let mut comms = map.get_comms();
 
     // Start the frame.
@@ -372,6 +425,8 @@ pub fn start_frame(map: &mut bn::Map<Ent>) {
 
 /// Make the move on the map.
 pub fn mk_move(map: &mut bn::Map<Ent>) {
+    map.update_vfx();
+
     while map.update() {}
 }
 

@@ -27,25 +27,34 @@ fn main() {
     // Objects we have.
     let mut ordered_objs = loader::load_objs();
     ordered_objs.insert(0, vec![BanditObj::from(Ent::player())]);
+    // Add the exit.
+    ordered_objs.insert(1, vec![BanditObj::from(Tile::exit())]);
 
     // Make a button.
     ordered_objs.add_tile(Tile::button());
-    // Add both doors.
+    // Add both normal doors and the one way version.
     ordered_objs.add_tile(Tile::door(true));
     ordered_objs.add_tile(Tile::door(false));
+    ordered_objs.add_tile(Tile::single_door());
+    // Add both levers.
+    ordered_objs.add_tile(Tile::lever(true));
+    ordered_objs.add_tile(Tile::lever(false));
     
     // Add goals and lasers to the object list.
     for i in 1..8 {
         let clr = beam::Clr::from(i);
         ordered_objs.add_entity(Ent::goal(clr));
         let mut lsrs = Vec::new();
+        let mut lsrs2 = Vec::new();
         for p in 0..8 {
             // This just makes sure the first rotation is not diagonal as orthogonal orientations
             // are generally more useful in the editor.
             let p = (p + 1) % 8;
             lsrs.push(Ent::laser(beam::PORT_DIRS[p], clr));
+            lsrs2.push(Ent::inact_laser(beam::PORT_DIRS[p], clr));
         }
         ordered_objs.add_entities(lsrs);
+        ordered_objs.add_entities(lsrs2);
     }
     
     // Add tiles to the object list.

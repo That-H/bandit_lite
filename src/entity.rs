@@ -1,8 +1,12 @@
 use super::*;
+use loader::puzzles;
 
 const DIAG_ARROWS: [char; 8] = ['↖', '↑', '↗', '→', '↘', '↓', '↙', '←'];
 /// Background colour of immovable objects.
 pub const IMMOVABLE_CLR: style::Color = style::Color::DarkGrey;
+
+mod activation;
+pub use activation::*;
 
 /// A move that the player did.
 #[derive(Clone, Copy, Debug)]
@@ -12,109 +16,6 @@ impl Move {
     /// Create a move.
     pub const fn new(dir: Point) -> Self {
         Self(dir)
-    }
-}
-
-/// A possible source of activation for an entity or tile.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ActSource {
-    /// An object such as a button.
-    Obj,
-    /// A laser beam.
-    Laser,
-    /// A player or an object moves on to this tile.
-    WalkOn,
-    /// A player walks off of this tile.
-    WalkOff,
-    /// A player or an object is still on this tile at the start of the frame.
-    StayOn,
-    /// Frame ends.
-    FrameEnd,
-    /// Frame begins.
-    FrameStart,
-}
-
-/// A possible effect of being activated.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub enum ActEffect {
-    /// Propagate this activation to surrounding tiles/entities.
-    Prop,
-    /// Invert the current active state.
-    Inv,
-    /// Set the current active state to true.
-    MkActive,
-    /// Set the previous active state to the current one, then set the current one to false.
-    Reset,
-    /// Win the puzzle.
-    Win,
-    /// Does nothing.
-    Null,
-}
-
-/// Handles an activation from a source.
-#[derive(Clone, Copy, PartialEq, Eq, Debug)]
-pub struct ActHandler {
-    src: ActSource,
-    ef: ActEffect,
-}
-
-impl ActHandler {
-    /// Create a handler for the source that does the effect.
-    pub fn new(src: ActSource, ef: ActEffect) -> Self {
-        Self {
-            src,
-            ef,
-        }
-    }
-
-    /// Handle an activation from the source. Requires the map the object is in and its position. 
-    pub fn activate(&self, map: &bn::Map<Ent>, src: ActSource, pos: Point) -> Vec<bn::Cmd<Ent>> {
-        let mut cmds = Vec::new();
-        if src == self.src {
-            match self.ef {
-                ActEffect::Inv => {
-                    cmds.push(bn::Cmd::new_on(pos).modify_entity(Box::new(|e: &mut Ent| {
-                        e.active = !e.active; 
-                    })));
-                    cmds.push(bn::Cmd::new_on(pos).modify_tile(Box::new(|t: &mut Tile| {
-                        t.active = !t.active; 
-                    })));
-                }
-                ActEffect::MkActive => {
-                    cmds.push(bn::Cmd::new_on(pos).modify_entity(Box::new(|e: &mut Ent| {
-                        e.active = true;
-                    })));
-                    cmds.push(bn::Cmd::new_on(pos).modify_tile(Box::new(|t: &mut Tile| {
-                        t.active = true;
-                    })));
-                }
-                ActEffect::Prop => {
-                    for p in pos.get_all_adjacent_diagonal() {
-                        if let Some(e) = map.get_ent(p) {
-                            cmds.append(&mut e.activate(map, ActSource::Obj, p));
-                        }
-                        if let Some(t) = map.get_map(p) {
-                            cmds.append(&mut t.activate(map, ActSource::Obj, p));
-                        }
-                    }
-                }
-                ActEffect::Win => {
-                    unsafe {
-                        SHOULD_WIN = true;
-                    }
-                }
-                ActEffect::Reset => {
-                    cmds.push(bn::Cmd::new_on(pos).modify_entity(Box::new(|e: &mut Ent| {
-                        e.active = false;
-                    })));
-                    cmds.push(bn::Cmd::new_on(pos).modify_tile(Box::new(|t: &mut Tile| {
-                        t.active = false;
-                    })));
-                }
-                ActEffect::Null => (),
-            }
-        }
-        cmds
     }
 }
 
@@ -130,6 +31,8 @@ pub enum EntType {
     /// Takes an input of the given colour to any port. This activates all surrounding
     /// tiles/entities.
     Goal(beam::Clr),
+    /// Something else that is driven by its activation handlers.
+    Other,
 }
 
 /// A movable object in a game.
@@ -145,6 +48,8 @@ pub struct Ent {
     pub movable: bool,
     /// True if this entity is being activated this frame.
     pub active: bool,
+    /// True if the entity was being activated during the previous frame.
+    pub prev_active: bool,
     /// Activation handlers of this entity.
     pub handlers: Vec<ActHandler>,
 }
@@ -164,11 +69,34 @@ impl Ent {
         }
     }
 
+    /// Create an entity that requires activation to fire a laser.
+    pub fn inact_laser(dir: Point, clr: beam::Clr) -> Self {
+        let laser = ActEffect::Laser(beam::Beam::new(clr, dir));
+        let handlers = vec![
+            ActHandler::new(ActSource::FrameEnd, ActEffect::Reset),
+            ActHandler::new(ActSource::FrameStart, Cond::EPrevActive.cond_ef(laser.clone())),
+            ActHandler::new(ActSource::Obj, Cond::EActive.not().cond_ef(laser.clone().chain(ActEffect::MkActive))),
+        ];
+
+        Self {
+            ch: DIAG_ARROWS[beam::port_num(-dir)].with(clr.darker()),
+            tp: EntType::Other,
+            handlers,
+            ..Default::default()
+        }
+    }
+
     /// Create a goal entity.
     pub fn goal(clr: beam::Clr) -> Self {
+        let handlers = vec![
+            ActHandler::new(ActSource::Laser, Cond::EActive.not().cond_ef(ActEffect::Prop)),
+            ActHandler::new(ActSource::Laser, ActEffect::MkActive),
+            ActHandler::new(ActSource::FrameEnd, ActEffect::Reset),
+        ];
         Self {
             ch: 'O'.with(clr.into()),
             tp: EntType::Goal(clr),
+            handlers,
             ..Default::default()
         }
     }
@@ -227,7 +155,7 @@ impl Ent {
     /// Get the way this should be represented in a file.
     pub fn file_repr(&self) -> String {
         let mut string = String::new();
-        let mut ch1: char = beam::Clr::from(self.ch.style().foreground_color.unwrap()).into();
+        let mut ch1: char = puzzles::map_clr(self.ch.style().foreground_color.unwrap()).unwrap();
         if !self.movable { 
             ch1 = ch1.to_ascii_uppercase();
         }
@@ -285,7 +213,7 @@ impl bn::Entity for Ent {
                         }
                     }
                     if let Some(t) = cmd.get_map(nx) {
-                        cmd.queue_many(t.activate(cmd, ActSource::WalkOn, nx));
+                        cmd.queue_many(t.activate(cmd, ActSource::PlWalkOn, nx));
                     }
                     cmd.queue(bn::Cmd::new_here().displace(DIR));
                     MOVES.write().unwrap().push(Move::new(DIR));
@@ -293,7 +221,7 @@ impl bn::Entity for Ent {
                 }
             },
             EntType::Laser(bm) => {
-                bm.propagate(cmd, pos);
+                cmd.queue_many(bm.propagate(cmd, pos));
             }
             // Anyone else has nothing to worry about.
             _ => (),
@@ -309,6 +237,7 @@ impl bn::Entity for Ent {
                 EntType::Obj(_) => 0,
                 EntType::Laser(_) => 3,
                 EntType::Goal(_) => 2,
+                EntType::Other => 0,
             }
         }
     }
@@ -322,6 +251,7 @@ impl Default for Ent {
             updated: false,
             movable: true,
             active: false,
+            prev_active: false,
             handlers: Vec::new(),
         }
     }
