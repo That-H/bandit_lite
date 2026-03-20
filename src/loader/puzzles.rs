@@ -9,6 +9,7 @@ pub mod ts;
 pub fn start_puzzle(pzl: &Puzzle) -> bn::Map<Ent> {
     unsafe {
         PLAYER = pzl.pl_pos;
+        SHOULD_WIN = false;
     }
     MOVES.write().unwrap().clear();
     pzl.data.clone()

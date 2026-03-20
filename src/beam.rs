@@ -232,7 +232,12 @@ impl Beam {
                         cmds.append(&mut e.activate(map, entity::ActSource::Laser, cur));
                     }
                     let inpts = INPTS.read().unwrap();
-                    for (o_port, &clr) in e.outputs(inpts.get(&cur).unwrap()).iter().enumerate() {
+                    let iter = e.outputs(inpts.get(&cur).unwrap()).into_iter().enumerate();
+
+                    // Beam propagation will need INPTS, so drop the handle to avoid tears.
+                    drop(inpts);
+
+                    for (o_port, clr) in iter {
                         // Propagate beams that have a colour.
                         if clr != Clr::Black {
                             let bm = Self::new(clr, PORT_DIRS[o_port]);

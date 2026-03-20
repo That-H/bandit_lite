@@ -34,6 +34,11 @@ const SELECTOR: &str = ">";
 const HOVER_CLR: style::Color = style::Color::Yellow;
 const SELECTOR_CLR: style::Color = HOVER_CLR;
 const DELAY: time::Duration = time::Duration::from_millis(35);
+const SECTION_SIZES: [usize; SECTION_COUNT+1] = [
+    0,
+    3
+];
+const SECTION_COUNT: usize = 1;
 
 /// Exit code for playing the game.
 pub const PLAY: u32 = 0;
@@ -173,13 +178,17 @@ pub fn puzzle_select(
 
     // Last section.
     let mut last_sect = -1;
+    let mut section_size = 0;
     let mut pos = Point::new(1, 2);
     let mut screen_pos = pos + Point::new(1, 3);
 
     for (n, pzl) in pzls.pzls.iter().enumerate() {
-        // New difficulty block found
-        if sectioning && n % 8 == 0 {
+        let this_sect = SECTION_SIZES.get((last_sect + 1) as usize).copied().unwrap_or(999);
+
+        // New section.
+        if sectioning && this_sect == section_size {
             last_sect += 1;
+            section_size = 0;
             let clr = match last_sect {
                 0 => style::Color::Green,
                 1 => style::Color::Yellow,
@@ -199,6 +208,7 @@ pub fn puzzle_select(
             );
             screen_pos.y += 1;
         }
+        section_size += 1;
 
         let txt_clr = if completion.contains(&pzl.id) {
             style::Color::Rgb { r: 50, g: 255, b: 0 }
@@ -285,7 +295,7 @@ pub fn end_screen(editor: bool) -> ui::Scene {
         vec![
             ("Next Puzzle", ui::Event::Exit(NEXT)),
             ("Puzzle Select", ui::Event::Exit(PUZZLE_SEL)),
-            ("Main Menu", ui::Event::ChangeScene(0)),
+            ("Main Menu", ui::Event::Exit(MAIN_MENU)),
             ("Save and Quit", ui::Event::Exit(SAVE_AND_QUIT)),
         ]
     };

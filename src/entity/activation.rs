@@ -17,6 +17,8 @@ pub enum ActSource {
     WalkOff,
     /// A player or an object is still on this tile at the start of the frame.
     StayOn,
+    /// An always active laser should fire. 
+    LaserTime,
     /// Frame ends.
     FrameEnd,
     /// Frame begins.

@@ -114,6 +114,11 @@ fn main() {
             ui_cont.run()
         };
         match res {
+            scenes::MAIN_MENU => {
+                init_scene = 0;
+                editor = false;
+                continue 'full;
+            }
             scenes::PLAY => {
                 editor = false;
                 pack_idx = 69420;
@@ -174,6 +179,7 @@ fn main() {
                     } else {
                         // User changed their mind about wanting to edit a puzzle.
                         init_scene = 0;
+                        editor = false;
                         continue 'full;
                     }
                 }
@@ -316,6 +322,10 @@ fn main() {
                         },
                         scenes::PUZZLE_SEL => {
                             init_scene = 1;
+                            continue 'full;
+                        }
+                        scenes::MAIN_MENU => {
+                            init_scene = 0;
                             continue 'full;
                         }
                         p if p >= 2000 => { 

@@ -407,6 +407,9 @@ pub fn start_frame(map: &mut bn::Map<Ent>) {
         }
     }
 
+    map.actuate_comms(comms.into_iter(), Point::new(999, 999));
+    let mut comms = map.get_comms();
+
     // Inform all tiles with an entity upon them of their situation. They may have something to say
     // about it.
     for y in (0..map.hgt).rev() {
@@ -416,6 +419,19 @@ pub fn start_frame(map: &mut bn::Map<Ent>) {
                 if map.get_ent(p).is_some() {
                     comms.queue_many(t.activate(map, ActSource::StayOn, p));
                 }
+            }
+        }
+    }
+
+    map.actuate_comms(comms.into_iter(), Point::new(999, 999));
+    let mut comms = map.get_comms();
+
+    // Tell all active lasers to do their thing.
+    for y in (0..map.hgt).rev() {
+        for x in 0..=map.wid {
+            let p = Point::new(x as i32, y as i32);
+            if let Some(e) = map.get_ent(p) {
+                comms.queue_many(e.activate(map, ActSource::LaserTime, p));
             }
         }
     }

@@ -62,9 +62,13 @@ impl Ent {
 
     /// Create an entity that fires a laser.
     pub fn laser(dir: Point, clr: beam::Clr) -> Self {
+        let bm = beam::Beam::new(clr, dir);
         Self {
             ch: DIAG_ARROWS[beam::port_num(-dir)].with(clr.into()),
-            tp: EntType::Laser(beam::Beam::new(clr, dir)),
+            tp: EntType::Laser(bm.clone()),
+            handlers: vec![
+                ActHandler::new(ActSource::LaserTime, ActEffect::Laser(bm)),
+            ],
             ..Default::default()
         }
     }
@@ -89,8 +93,7 @@ impl Ent {
     /// Create a goal entity.
     pub fn goal(clr: beam::Clr) -> Self {
         let handlers = vec![
-            ActHandler::new(ActSource::Laser, Cond::EActive.not().cond_ef(ActEffect::Prop)),
-            ActHandler::new(ActSource::Laser, ActEffect::MkActive),
+            ActHandler::new(ActSource::Laser, Cond::EActive.not().cond_ef(ActEffect::Prop).chain(ActEffect::MkActive)),
             ActHandler::new(ActSource::FrameEnd, ActEffect::Reset),
         ];
         Self {
@@ -188,7 +191,7 @@ impl bn::Entity for Ent {
         }
     }
 
-    fn update(&self, cmd: &mut bandit::Commands<'_, Self>, pos: Point)
+    fn update(&self, cmd: &mut bandit::Commands<'_, Self>, _pos: Point)
         where
             Self: Sized {
         // Make sure everyone knows we updated.
@@ -219,9 +222,6 @@ impl bn::Entity for Ent {
                     MOVES.write().unwrap().push(Move::new(DIR));
                     PLAYER = nx;
                 }
-            },
-            EntType::Laser(bm) => {
-                cmd.queue_many(bm.propagate(cmd, pos));
             }
             // Anyone else has nothing to worry about.
             _ => (),
@@ -235,8 +235,8 @@ impl bn::Entity for Ent {
             match self.tp {
                 EntType::Player => 10,
                 EntType::Obj(_) => 0,
-                EntType::Laser(_) => 3,
-                EntType::Goal(_) => 2,
+                EntType::Laser(_) => 0,
+                EntType::Goal(_) => 0,
                 EntType::Other => 0,
             }
         }
