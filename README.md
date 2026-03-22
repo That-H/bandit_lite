@@ -52,11 +52,11 @@ which will erase the current puzzle state. If the puzzle state was saved, then i
 
 To run the game, a release can be directly installed from the repository's releases tab, which will contain a binary file.
 Alternatively, the game can be built from source using Cargo. See [Building From Source](#Building-From-Source).
-> Note: It is not recommended to versions before 0.3.0 due to puzzle formatting issues.
+> Note: It is not recommended to install versions before 0.3.0 due to puzzle formatting issues and other bugs.
 
 ### Building From Source
 
-As the game developed in Rust using Cargo, this can naturally be used to build the game. Simply clone the repository using git (or otherwise 
+As the game is developed in Rust using Cargo, this can naturally be used to build the game. Simply clone the repository using git (or otherwise 
 obtain a copy of the source files), then run the following Cargo command in the directory where the source files are located to build the source:
 
     cargo run --release

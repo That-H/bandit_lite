@@ -1,7 +1,7 @@
 //! Ui scenes.
 
 use crate::loader::get_assets_path;
-use crate::loader::puzzles::{sect_comps, SECTION_SIZES};
+use crate::loader::puzzles::{sect_comps, SECTION_SIZES, SECTION_COUNT};
 
 use super::*;
 use windowed::ui;
@@ -35,6 +35,13 @@ const SELECTOR: &str = ">";
 const HOVER_CLR: style::Color = style::Color::Yellow;
 const SELECTOR_CLR: style::Color = HOVER_CLR;
 const DELAY: time::Duration = time::Duration::from_millis(35);
+
+/// Colour of each puzzle section heading.
+const SECTION_CLRS: [style::Color; SECTION_COUNT] = [
+    style::Color::DarkGreen,
+    style::Color::Yellow,
+    style::Color::Grey,
+];
 
 /// Exit code for playing the game.
 pub const PLAY: u32 = 0;
@@ -186,14 +193,7 @@ pub fn puzzle_select(
         // New section.
         if sect && this_sect == section_size {
             last_sect += 1;
-            let clr = match last_sect {
-                0 => style::Color::Green,
-                1 => style::Color::Yellow,
-                2 => style::Color::Red,
-                3 => style::Color::DarkRed,
-                4 => style::Color::DarkMagenta,
-                d => panic!("Unexpected section '{d}'"),
-            };
+            let clr = SECTION_CLRS[last_sect as usize];
             let comp = comps[last_sect as usize];
             let nx_size = SECTION_SIZES.get((last_sect + 1) as usize).copied().unwrap_or(pzls.pzls.len() - n);
             pzl_scene.add_element(
@@ -209,7 +209,7 @@ pub fn puzzle_select(
             section_size = 0;
         }
         section_size += 1;
-        let lck = if let Some(lckd) = sectioning && !lckd[n] {
+        let lck = if let Some(lckd) = sectioning && !lckd.get(n).copied().unwrap_or(false) && !editing {
             true
         } else {
             false
