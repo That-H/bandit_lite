@@ -52,6 +52,7 @@ which will erase the current puzzle state. If the puzzle state was saved, then i
 
 To run the game, a release can be directly installed from the repository's releases tab, which will contain a binary file.
 Alternatively, the game can be built from source using Cargo. See [Building From Source](#Building-From-Source).
+> Note: It is not recommended to versions before 0.3.0 due to puzzle formatting issues.
 
 ### Building From Source
 

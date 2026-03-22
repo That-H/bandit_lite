@@ -5,6 +5,8 @@ use std::fmt;
 
 pub mod ts;
 
+pub const PL_DEFAULT_POS: Point = Point::new(-69, -420);
+
 /// Initialise a puzzle, returning a clone of its map for use.
 pub fn start_puzzle(pzl: &Puzzle) -> bn::Map<Ent> {
     unsafe {
@@ -61,7 +63,7 @@ impl Puzzle {
     pub fn new(name: String) -> Self {
         Self {
             data: bn::Map::new(7, 7),
-            pl_pos: Point::new(-69, -420),
+            pl_pos: PL_DEFAULT_POS,
             name,
             id: 0,
         }

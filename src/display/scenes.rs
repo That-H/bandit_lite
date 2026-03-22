@@ -34,11 +34,16 @@ const SELECTOR: &str = ">";
 const HOVER_CLR: style::Color = style::Color::Yellow;
 const SELECTOR_CLR: style::Color = HOVER_CLR;
 const DELAY: time::Duration = time::Duration::from_millis(35);
-const SECTION_SIZES: [usize; SECTION_COUNT+1] = [
+/// Size of each puzzle section.
+const SECTION_SIZES: [usize; SECTION_COUNT] = [
     0,
-    3
+    3,
+    2,
 ];
-const SECTION_COUNT: usize = 1;
+/// Number of sections.
+const SECTION_COUNT: usize = 3;
+/// Minimum completion to be able to see the section after the current one.
+const MIN_COMP: f64 = 0.7;
 
 /// Exit code for playing the game.
 pub const PLAY: u32 = 0;
@@ -181,6 +186,25 @@ pub fn puzzle_select(
     let mut section_size = 0;
     let mut pos = Point::new(1, 2);
     let mut screen_pos = pos + Point::new(1, 3);
+    let mut finish = false;
+
+    // Get completion counts for each section. Stops if the percentage is less than MIN_COMP.
+    let mut comps = Vec::new();
+    let mut cur_comp = 0;
+    let mut cur_found = 0;
+
+    for pzl in pzls.pzls.iter() {
+        cur_found += 1;
+        if completion.contains(&pzl.id) {
+            cur_comp += 1;
+        }
+        if cur_found == SECTION_SIZES.get(comps.len() + 1).copied().unwrap_or(999) {
+            comps.push((cur_comp, cur_found));
+            cur_comp = 0;
+            cur_found = 0;
+        }
+    }
+    comps.push((cur_comp, cur_found));
 
     for (n, pzl) in pzls.pzls.iter().enumerate() {
         let this_sect = SECTION_SIZES.get((last_sect + 1) as usize).copied().unwrap_or(999);
@@ -197,49 +221,73 @@ pub fn puzzle_select(
                 4 => style::Color::DarkMagenta,
                 d => panic!("Unexpected section '{d}'"),
             };
+            let (comp, sz) = comps[last_sect as usize];
             pzl_scene.add_element(
                 Box::new(
                     basic_button()
-                        .set_txt(format!("Section {}", last_sect))
+                        .set_txt(format!("Section {last_sect} {comp}/{sz}"))
                         .set_clr(clr)
                         .set_screen_pos(screen_pos),
                 ),
                 pos + Point::new(500, 5),
             );
             screen_pos.y += 1;
+            if (comp as f64 / sz as f64) < MIN_COMP {
+                finish = true;
+            }
         }
         section_size += 1;
 
-        let txt_clr = if completion.contains(&pzl.id) {
+        let txt_clr = if finish {
+            style::Color::DarkGrey
+        } else if completion.contains(&pzl.id) {
             style::Color::Rgb { r: 50, g: 255, b: 0 }
         } else {
             style::Color::White
         };
 
-        let button = basic_button()
-            .set_txt(format!("{}", pzl.name))
-            .set_clr(txt_clr)
-            .set_events(vec![
+        let txt = if finish {
+            String::from("???")
+        } else {
+            pzl.name.clone()
+        };
+        let evs = if finish {
+            Vec::new() 
+        } else {
+            vec![
                 ui::Event::Broadcast(String::from("clr")),
                 ui::Event::Exit(n as u32 + 2000),
-            ])
+            ]
+        };
+
+        let button = basic_button()
+            .set_txt(txt)
+            .set_clr(txt_clr)
+            .set_events(evs)
             .set_screen_pos(screen_pos);
-        let mut pzl_win = windowed::Window::new(PREVIEW_POS);
-        let top_left = Point::new(
-            -(PREVIEW_SIZE.0 as i32 / 2 - pzl.data.wid as i32 / 2),
-            PREVIEW_SIZE.1 as i32 / 2 + pzl.data.hgt as i32 / 2,
-        );
-        pzl.data.display_into(&mut pzl_win, top_left, PREVIEW_SIZE.0 as u32, PREVIEW_SIZE.1 as u32);
-        pzl_win.outline_with(outline_ch());
-        pzl_scene.add_element(
-            Box::new(
-                linked_button::LinkedButton::new(
-                    button,
-                    pzl_win,
-                )
-            ),
-            pos,
-        );
+        if finish {
+            pzl_scene.add_element(
+                Box::new(button),
+                pos
+            )
+        } else {
+            let mut pzl_win = windowed::Window::new(PREVIEW_POS);
+            let top_left = Point::new(
+                -(PREVIEW_SIZE.0 as i32 / 2 - pzl.data.wid as i32 / 2),
+                PREVIEW_SIZE.1 as i32 / 2 + pzl.data.hgt as i32 / 2,
+            );
+            pzl.data.display_into(&mut pzl_win, top_left, PREVIEW_SIZE.0 as u32, PREVIEW_SIZE.1 as u32);
+            pzl_win.outline_with(outline_ch());
+            pzl_scene.add_element(
+                Box::new(
+                    linked_button::LinkedButton::new(
+                        button,
+                        pzl_win,
+                    )
+                ),
+                pos,
+            );
+        }
         pos.y += 1;
         screen_pos.y += 1;
     }

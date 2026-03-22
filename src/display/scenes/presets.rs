@@ -5,6 +5,9 @@ use loader::{ObjList, puzzles};
 use level_editor::EditEvent;
 use crossterm::{execute, event, terminal};
 
+/// Default name if the user tries to create a puzzle/pack with an empty name.
+const DEFAULT_NAME: &str = "untitled";
+
 /// Get the user to choose a puzzle pack. Returns None if they don't want to. Also allows them to
 /// create new packs, rename existing packs, or delete them.
 pub fn choose_pack(packs: &mut Vec<puzzles::PuzzlePack>, std_pzls: &puzzles::PuzzlePack) -> Option<usize> {
@@ -131,7 +134,7 @@ pub fn edit_puzzle(
     // player yet.
     editor.pl_pos = if pzl.pl_pos == Point::new(-69, -420) { None } else { Some(pzl.pl_pos) };
     
-    editor.outline();
+    level_editor::outline(editor.data);
 
     loop {
         editor.draw(&mut cont.windows[0], true);
@@ -231,6 +234,7 @@ pub fn choose_puzzle(
                             let mut pzl = puzzles::Puzzle::new(name);
                             pzl.data.wid = wid as usize;
                             pzl.data.hgt = hgt as usize;
+                            level_editor::outline(&mut pzl.data);
                             pack.pzls.push(pzl); 
                             puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
                             break;
@@ -296,7 +300,12 @@ pub fn get_name() -> Option<String> {
 
     match cont.run() {
         scenes::CONFIRM => {
-            let name = cont.cur_scene().get_element(Point::new(1, 1)).unwrap().get_text();
+            let mut name = cont.cur_scene().get_element(Point::new(1, 1)).unwrap().get_text();
+
+            // Empty name should be replaced with a default to prevent crash.
+            if name.is_empty() || name.chars().all(|c| c.is_ascii_whitespace()) {
+                name = String::from(DEFAULT_NAME);
+            }
             Some(name)
         }
         _ => None,

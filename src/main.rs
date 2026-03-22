@@ -278,13 +278,13 @@ fn main() {
                             drop(write);
                             map = start_puzzle(pzl);
                             for mv in mvs {
-                                unsafe { DIR = mv.0 }
-                                start_frame(&mut map);
-                                mk_move(&mut map);
                                 end_frame(&mut map);
+                                start_frame(&mut map);
+                                unsafe { DIR = mv.0 }
+                                mk_move(&mut map);
                             }
                             display::display_all(&map, &mut main_cont, unsafe { PLAYER });
-                            continue;
+                            continue 'game;
                         }
                         _ => continue,
                     };

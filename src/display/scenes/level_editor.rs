@@ -12,7 +12,8 @@ const CURSOR_CLR: style::Color = style::Color::DarkCyan;
 
 /// Allows the user to create a puzzle and save it locally.
 pub struct LevelEditor<'a> {
-    data: &'a mut bn::Map<Ent>,
+    /// Map stored.
+    pub data: &'a mut bn::Map<Ent>,
     objs: &'a ObjList,
     cursor: Point,
     /// Current object index into objs.
@@ -40,7 +41,7 @@ impl<'a> LevelEditor<'a> {
 
     /// Change the size of this level editor. 
     pub fn resize(&mut self, new_wid: usize, new_hgt: usize) {
-        self.outline();
+        outline(self.data);
         self.data.wid = new_wid;
         self.data.hgt = new_hgt;
     }
@@ -84,25 +85,6 @@ impl<'a> LevelEditor<'a> {
             win.data.push(row);
         }
         win.outline_with(outline_ch());
-    }
-
-    /// Outline the map with walls.
-    pub fn outline(&mut self) {
-        for y in 0..self.data.hgt {
-            for x in 0..self.data.wid {
-                let p = Point::new(x as i32, y as i32);
-                let tl = if x == 0 || x == self.data.wid-1 || y == 0 || y == self.data.hgt-1 {
-                    Tile::wall()
-                } else {
-                    // Don't overwrite my useful tiles with floors!
-                    if self.data.get_map(p).is_some() {
-                        continue;
-                    }
-                    Tile::floor()
-                };
-                self.data.insert_tile(tl, p)
-            }
-        }
     }
 
     /// Get the current object to use.
@@ -247,3 +229,23 @@ pub enum EditEvent {
     Menu,
     Null,
 }
+
+/// Outline the map with walls.
+pub fn outline(map: &mut bn::Map<Ent>) {
+    for y in 0..map.hgt {
+        for x in 0..map.wid {
+            let p = Point::new(x as i32, y as i32);
+            let tl = if x == 0 || x == map.wid-1 || y == 0 || y == map.hgt-1 {
+                Tile::wall()
+            } else {
+                // Don't overwrite my useful tiles with floors!
+                if map.get_map(p).is_some() {
+                    continue;
+                }
+                Tile::floor()
+            };
+            map.insert_tile(tl, p)
+        }
+    }
+}
+

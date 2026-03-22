@@ -76,6 +76,10 @@ pub fn write_pzls(pack: &puzzles::PuzzlePack) -> Result<(), puzzles::PzlIOErr> {
     data.push('\n');
 
     for pzl in pack.pzls.iter() {
+        // No player, no puzzle!
+        if pzl.pl_pos == puzzles::PL_DEFAULT_POS {
+            continue;
+        }
         data.push_str(&pzl.name);
         data.push('\n');
         data.push_str(&pzl.file_repr());
