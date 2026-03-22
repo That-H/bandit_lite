@@ -30,12 +30,14 @@ pub fn load_custom_pzls(default_tile: &Tile, ts: &puzzles::ts::TileSet) -> Vec<p
 
     let mut fnames = Vec::new();
 
-    for f in fs::read_dir(custom_pzl_path).unwrap() {
-        let f = f.unwrap();
-        let path = f.path();
+    if let Ok(d) = fs::read_dir(custom_pzl_path) {
+        for f in d {
+            let f = f.unwrap();
+            let path = f.path();
 
-        if path.is_file() {
-            fnames.push(path);
+            if path.is_file() {
+                fnames.push(path);
+            }
         }
     }
 

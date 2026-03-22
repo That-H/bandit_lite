@@ -202,7 +202,7 @@ pub enum EditExit {
 pub fn choose_puzzle(
     pack: &mut puzzles::PuzzlePack,
     completion: &HashSet<u128>,
-    sectioning: bool,
+    sectioning: Option<&[bool]>,
     editing: bool
 ) -> Option<usize> {
     let mut handle = io::stdout();

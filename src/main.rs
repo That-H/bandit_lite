@@ -83,6 +83,7 @@ fn main() {
     let mut pack_idx = 69420;
     // Load completion state.
     let mut completion = loader::saver::load_pzl_save();
+    let mut unlocked = loader::puzzles::get_unlocked(&pzls, &completion);
 
     // Initial scene when the full loop begins.
     let mut init_scene = 0;
@@ -94,10 +95,11 @@ fn main() {
     let mut temp_puzzle = loader::puzzles::Puzzle::new(String::from("_temp_"));
 
     'full: loop {
+        unlocked = loader::puzzles::get_unlocked(&pzls, &completion);
         let mut main_cont = windowed::Container::new();
         let mut ui_cont = windowed::ui::UiContainer::new();
         ui_cont.add_scene(scenes::main_menu());
-        ui_cont.add_scene(scenes::puzzle_select(&pzls, &completion, true, false));
+        ui_cont.add_scene(scenes::puzzle_select(&pzls, &completion, Some(&unlocked), false));
         ui_cont.add_scene(scenes::end_screen(false));
         ui_cont.add_scene(scenes::pause_screen(false));
         ui_cont.add_scene(scenes::end_screen(true));
@@ -142,7 +144,7 @@ fn main() {
                             scenes::presets::choose_puzzle(
                                 &mut custom_puzzles[idx],
                                 &completion,
-                                false,
+                                Some(&unlocked),
                                 true
                             )
                         };
@@ -305,6 +307,7 @@ fn main() {
                         pzls.pzls[pzl_idx].id
                     };
                     completion.insert(id);
+                    unlocked = loader::puzzles::get_unlocked(&pzls, &completion);
                     if editor {
                         init_scene = 4;
                         continue 'full;
@@ -335,7 +338,7 @@ fn main() {
                     }
 
                     if restart {
-                        if let Some(pzl) = pzls.pzls.get(pzl_idx) {
+                        if let Some(pzl) = pzls.pzls.get(pzl_idx) && unlocked[pzl_idx] {
                             map = loader::puzzles::start_puzzle(pzl);
                             let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
                             continue 'game;

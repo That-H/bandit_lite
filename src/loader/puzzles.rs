@@ -2,10 +2,22 @@
 
 use super::*;
 use std::fmt;
+use std::collections::HashSet;
 
 pub mod ts;
 
 pub const PL_DEFAULT_POS: Point = Point::new(-69, -420);
+
+/// Size of each puzzle section.
+pub const SECTION_SIZES: [usize; SECTION_COUNT] = [
+    0,
+    3,
+    2,
+];
+/// Number of sections.
+pub const SECTION_COUNT: usize = 3;
+/// Minimum completion to be able to see the section after the current one.
+pub const MIN_COMP: f64 = 0.7;
 
 /// Initialise a puzzle, returning a clone of its map for use.
 pub fn start_puzzle(pzl: &Puzzle) -> bn::Map<Ent> {
@@ -298,6 +310,50 @@ pub fn load_pzls<P: AsRef<std::path::Path>>(
     }
 
     Ok(pzls)
+}
+
+/// Get the locked status of all puzzles provided.
+pub fn get_unlocked(pck: &PuzzlePack, completion: &HashSet<u128>) -> Vec<bool> {
+    let mut lckd = Vec::new();
+
+    let comps = sect_comps(pck, completion);
+    let mut finish = false;
+
+    for (c, &sz) in comps.into_iter().zip(SECTION_SIZES.iter().skip(1)) {
+        for _ in 0..sz {
+            lckd.push(!finish);
+        }
+        if (c as f64 / sz as f64) < MIN_COMP {
+            finish = true;
+        }
+    }
+
+    for _ in lckd.len()..pck.pzls.len() {
+        lckd.push(!finish);
+    }
+
+    lckd
+}
+
+/// Gets the puzzles completed for each section.
+pub fn sect_comps(pck: &PuzzlePack, completion: &HashSet<u128>) -> Vec<usize> {
+    let mut comps = Vec::new();
+    let mut cur_comp = 0;
+    let mut cur_found = 0;
+
+    for pzl in pck.pzls.iter() {
+        cur_found += 1;
+        if completion.contains(&pzl.id) {
+            cur_comp += 1;
+        }
+        if cur_found >= SECTION_SIZES.get(comps.len() + 1).copied().unwrap_or(999) {
+            comps.push(cur_comp);
+            cur_comp = 0;
+            cur_found = 0;
+        }
+    }
+    comps.push(cur_comp);
+    comps
 }
 
 /// An error when writing/loading a puzzle.
