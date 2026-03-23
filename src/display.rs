@@ -3,9 +3,31 @@ use super::*;
 
 pub mod scenes;
 
+/// Width of the puzzle title window.
+pub const TITLE_WID: usize = 20;
+
+/// Display the title of the puzzle.
+pub fn display_title(pzl_name: &str, cont: &mut windowed::Container<StyleCh>) {
+    let cur_win = &mut cont.windows[1];
+    cur_win.data.clear();
+    let mut ln = Vec::new();
+    ln.push(' '.stylize());
+    for ch in pzl_name.chars() {
+        ln.push(ch.white());
+    }
+    for _ in ln.len()..TITLE_WID - 2 {
+        ln.push(' '.stylize());
+    }
+    cur_win.data.push(vec![' '.stylize(); TITLE_WID - 2]);
+    cur_win.data.push(ln);
+    cur_win.data.push(vec![' '.stylize(); TITLE_WID - 2]);
+    cur_win.outline_with('#'.grey());
+}
+
 /// Immediately displays the map into the container, then displays it on to the screen.
-pub fn display_all(map: &bn::Map<Ent>, cont: &mut windowed::Container<StyleCh>, centre: Point) {
+pub fn display_all(map: &bn::Map<Ent>, cont: &mut windowed::Container<StyleCh>, centre: Point, pzl_name: &str) {
     display_map(map, cont, centre);
+    display_title(pzl_name, cont);
     cont.refresh();
     print_win(cont);
 }

@@ -23,7 +23,7 @@ const PACK_SIZE: (usize, usize) = (20, 11);
 const PACK_POS: Point = Point::new(centre(PACK_SIZE.0), 14);
 const ENTRY_SIZE: (usize, usize) = (20, 4);
 const ENTRY_POS: Point = Point::new(centre(ENTRY_SIZE.0), 14);
-const OPTS_SIZE: (usize, usize) = (10, 6);
+const OPTS_SIZE: (usize, usize) = (14, 6);
 const OPTS_POS: Point = Point::new(centre(OPTS_SIZE.0), 14);
 const EDIT_MENU_SIZE: (usize, usize) = (12, 6);
 const EDIT_MENU_POS: Point = Point::new(centre(EDIT_MENU_SIZE.0), 14);
@@ -73,9 +73,13 @@ pub const DEL: u32 = 12;
 pub const SAVE: u32 = 13;
 /// Exit code to reset the puzzle to the initial state.
 pub const RESET: u32 = 14;
+/// Exit code to move a puzzle down one in the list.
+pub const MOVE_DOWN: u32 = 15;
+/// Exit code to move a puzzle up one in the list.
+pub const MOVE_UP: u32 = 16;
 
 /// Turn a width into a centred x position on the terminal.
-const fn centre(wid: usize) -> i32 {
+pub const fn centre(wid: usize) -> i32 {
     (TERMINAL_WID / 2 - wid as u16 / 2) as i32
 }
 
@@ -480,57 +484,43 @@ pub fn name_entry() -> ui::Scene {
 }
 
 /// Options after selecting something; rename, modify, delete, cancel.
-pub fn sel_opts() -> ui::Scene {
-    let mut scene = mk_scene(OPTS_POS, OPTS_SIZE);
+pub fn sel_opts(mv: bool) -> ui::Scene {
+    let mut txt = vec![
+        "Rename",
+        "Modify",
+        "Delete",
+        "Cancel",
+    ];
+    let mut evs = vec![
+        RENAME,
+        MODIFY,
+        DEL,
+        CANCEL,
+    ];
+    if mv {
+        txt.insert(2, "Move Down");
+        evs.insert(2, MOVE_DOWN);
+        txt.insert(2, "Move Up");
+        evs.insert(2, MOVE_UP);
+    }
+    let hgt = txt.len() + 2;
+    let mut scene = mk_scene(OPTS_POS, (OPTS_SIZE.0, hgt));
 
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Rename"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(RENAME),
-                ])
-                .set_screen_pos(Point::new(1, 1)),
-        ),
-        Point::new(1, 1),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Modify"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(MODIFY),
-                ])
-                .set_screen_pos(Point::new(1, 2)),
-        ),
-        Point::new(1, 2),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Delete"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(DEL),
-                ])
-                .set_screen_pos(Point::new(1, 3)),
-        ),
-        Point::new(1, 3),
-    );
-    scene.add_element(
-        Box::new(
-            basic_button()
-                .set_txt(String::from("Cancel"))
-                .set_events(vec![
-                    ui::Event::Broadcast(String::from("clr")),
-                    ui::Event::Exit(CANCEL),
-                ])
-                .set_screen_pos(Point::new(1, 4)),
-        ),
-        Point::new(1, 4),
-    );
+    for (n, (txt, cd)) in txt.into_iter().zip(evs).enumerate() {
+        let p = Point::new(1, n as i32 + 1);
+        scene.add_element(
+            Box::new(
+                basic_button()
+                    .set_txt(String::from(txt))
+                    .set_screen_pos(p)
+                    .set_events(vec![
+                        ui::Event::Broadcast(String::from("clr")),
+                        ui::Event::Exit(cd)
+                    ])
+            ),
+            p
+        );
+    }
 
     add_outline(&mut scene, OPTS_SIZE.0);
     add_title("choose.txt", &mut scene, 1);

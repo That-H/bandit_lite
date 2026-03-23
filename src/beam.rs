@@ -215,7 +215,12 @@ impl Beam {
 
         loop {
             cur = cur + self.dir;
-            if let Some(t) = map.get_map(cur) && !t.opaque {
+            let nx_opq = if let Some(t) = map.get_map(cur) && !t.opaque {
+                false
+            } else {
+                true
+            };
+            if !nx_opq || map.get_ent(cur).is_some() {
                 // An entity might change the beam, so handle this.
                 if let Some(e) = map.get_ent(cur) {
                     let mut inpts = INPTS.write().unwrap();
@@ -224,7 +229,13 @@ impl Beam {
                     } else {
                         true
                     };
-                    inpts.entry(cur).or_default()[port] = self.clr;
+                    let entry = inpts.entry(cur).or_default();
+
+                    // If we have already been in this port, return early.
+                    if entry[port] == self.clr {
+                        return cmds;
+                    }
+                    entry[port] = self.clr;
                     // Activate might want to use INPTS, so drop the write lock.
                     drop(inpts);
 

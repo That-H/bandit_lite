@@ -19,7 +19,7 @@ pub fn choose_pack(packs: &mut Vec<puzzles::PuzzlePack>, std_pzls: &puzzles::Puz
 
     // See what the user wants to do.
     let mut decision = ui::UiContainer::new();
-    decision.add_scene(scenes::sel_opts());
+    decision.add_scene(scenes::sel_opts(false));
     decision.add_scene(
         scenes::confirm_scene(
             String::from(
@@ -213,7 +213,7 @@ pub fn choose_puzzle(
 
     // See what the user wants to do with this.
     let mut decision = ui::UiContainer::new();
-    decision.add_scene(scenes::sel_opts());
+    decision.add_scene(scenes::sel_opts(true));
     decision.add_scene(
         scenes::confirm_scene(
             String::from(
@@ -268,6 +268,19 @@ pub fn choose_puzzle(
                         }
                     }
                     MODIFY => break idx,
+                    MOVE_UP => {
+                        if idx != 0 {
+                            pack.pzls.swap(idx, idx - 1);
+                            puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
+                        }
+                    }
+                    MOVE_DOWN => {
+                        let b = idx + 1;
+                        if b != pack.pzls.len() {
+                            pack.pzls.swap(idx, b);
+                            puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
+                        }
+                    }
                     DEL => {
                         decision.change_scene(1);
                         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));

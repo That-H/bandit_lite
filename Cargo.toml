@@ -1,6 +1,6 @@
 [package]
 name = "bandit_lite"
-version = "0.3.0-beta2"
+version = "0.3.0-beta3"
 edition = "2024"
 license-file = "LICENSE.md"
 repository = "https://github.com/That-H/bandit_lite"

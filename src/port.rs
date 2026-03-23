@@ -248,6 +248,10 @@ pub enum UnaryOp {
     Not,
     /// Maps primary colours to themselves and everything else to 0.
     Primary,
+    /// Maps secondary colours and white to themself and everything else to 0.
+    Secondary,
+    /// Maps white to itself and everything else to 0.
+    White,
 }
 
 impl UnaryOp {
@@ -258,7 +262,18 @@ impl UnaryOp {
             Self::Primary => match lhs {
                 0b100 | 0b010 | 0b001 => lhs,
                 _ => 0,
-            },
+            }
+            Self::Secondary => match lhs {
+                0b110 | 0b101 | 0b011 | 0b111 => lhs,
+                _ => 0,
+            }
+            Self::White => {
+                if lhs == 0b111 {
+                    lhs
+                } else {
+                    0
+                }
+            }
         }
     }
 }
@@ -270,6 +285,8 @@ impl TryFrom<char> for UnaryOp {
         Ok(match value {
             '!' => Self::Not,
             'P' => Self::Primary,
+            'S' => Self::Secondary,
+            'W' => Self::White,
             _ => return Err(ExprParseErr::InvalidOp),
         })
     }

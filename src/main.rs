@@ -9,7 +9,11 @@ use display::scenes;
 
 const GAME_POS: Point = Point::new(
     (TERMINAL_WID / 2 - GAME_WID / 2) as i32,
-    (TERMINAL_HGT / 2 - GAME_HGT / 2 - 1) as i32,
+    (TERMINAL_HGT / 2 - GAME_HGT / 2 + 2) as i32,
+);
+const TITLE_POS: Point = Point::new(
+    scenes::centre(display::TITLE_WID) + 1,
+    1
 );
 
 fn main() {
@@ -97,6 +101,9 @@ fn main() {
     'full: loop {
         unlocked = loader::puzzles::get_unlocked(&pzls, &completion);
         let mut main_cont = windowed::Container::new();
+        main_cont.add_win(windowed::Window::new(GAME_POS));
+        main_cont.add_win(windowed::Window::new(TITLE_POS));
+
         let mut ui_cont = windowed::ui::UiContainer::new();
         ui_cont.add_scene(scenes::main_menu());
         ui_cont.add_scene(scenes::puzzle_select(&pzls, &completion, Some(&unlocked), false));
@@ -106,7 +113,6 @@ fn main() {
         ui_cont.add_scene(scenes::pause_screen(true));
         ui_cont.change_scene(init_scene);
 
-        main_cont.add_win(windowed::Window::new(GAME_POS));
         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
 
         // Slight hack to make pausing during a playtest immediately return to the editor.
@@ -141,10 +147,15 @@ fn main() {
                         let cur_pzl_idx = if skip {
                             Some(pzl_idx)
                         } else { 
+                            let sectioning = if loader::saver::is_secret(&custom_puzzles[idx].name) {
+                                Some(unlocked.as_slice())
+                            } else {
+                                None
+                            };
                             scenes::presets::choose_puzzle(
                                 &mut custom_puzzles[idx],
                                 &completion,
-                                Some(&unlocked),
+                                sectioning,
                                 true
                             )
                         };
@@ -194,7 +205,7 @@ fn main() {
         }
         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
         // Map used for the game.
-        let pzl = if editor {
+        let mut pzl = if editor {
             &temp_puzzle
         } else {
             let pack = if pack_idx == 69420 { &pzls } else { &custom_puzzles[pack_idx] };
@@ -208,7 +219,7 @@ fn main() {
             // Display the game window.
             end_frame(&mut map);
             start_frame(&mut map);
-            display::display_all(&map, &mut main_cont, unsafe { PLAYER });
+            display::display_all(&map, &mut main_cont, unsafe { PLAYER }, &pzl.name);
 
             while let event::Event::Key(ke) = event::read().expect("what") {
                 if ke.is_press() {
@@ -232,7 +243,7 @@ fn main() {
 
                             match ui_cont.run() {
                                 scenes::PLAY => {
-                                    display_all(&map, &mut main_cont, unsafe { PLAYER });
+                                    display_all(&map, &mut main_cont, unsafe { PLAYER }, &pzl.name);
                                 }
                                 scenes::RESET => {
                                     let pzl = if editor {
@@ -243,7 +254,7 @@ fn main() {
                                     };
                                     map = loader::puzzles::start_puzzle(pzl);
                                     let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
-                                    display_all(&map, &mut main_cont, unsafe { PLAYER });
+                                    display_all(&map, &mut main_cont, unsafe { PLAYER }, &pzl.name);
                                 }
                                 scenes::PUZZLE_SEL => {
                                     init_scene = 1;
@@ -285,7 +296,7 @@ fn main() {
                                 unsafe { DIR = mv.0 }
                                 mk_move(&mut map);
                             }
-                            display::display_all(&map, &mut main_cont, unsafe { PLAYER });
+                            display::display_all(&map, &mut main_cont, unsafe { PLAYER }, &pzl.name);
                             continue 'game;
                         }
                         _ => continue,
@@ -338,8 +349,9 @@ fn main() {
                     }
 
                     if restart {
-                        if let Some(pzl) = pzls.pzls.get(pzl_idx) && unlocked[pzl_idx] {
-                            map = loader::puzzles::start_puzzle(pzl);
+                        if let Some(nx_pzl) = pzls.pzls.get(pzl_idx) && unlocked[pzl_idx] {
+                            map = loader::puzzles::start_puzzle(nx_pzl);
+                            pzl = nx_pzl;
                             let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
                             continue 'game;
                         } else {

@@ -13,7 +13,7 @@ dependencies = [
 
 [[package]]
 name = "bandit_lite"
-version = "0.3.0-beta2"
+version = "0.3.0-beta3"
 dependencies = [
  "bandit",
  "crossterm",
