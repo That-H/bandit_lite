@@ -12,10 +12,11 @@ pub const PL_DEFAULT_POS: Point = Point::new(-69, -420);
 pub const SECTION_SIZES: [usize; SECTION_COUNT] = [
     0,
     3,
-    3,
+    4,
+    5,
 ];
 /// Number of sections.
-pub const SECTION_COUNT: usize = 3;
+pub const SECTION_COUNT: usize = 4;
 /// Minimum completion to be able to see the section after the current one.
 pub const MIN_COMP: f64 = 0.7;
 

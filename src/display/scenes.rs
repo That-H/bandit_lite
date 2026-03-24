@@ -39,8 +39,9 @@ const DELAY: time::Duration = time::Duration::from_millis(35);
 /// Colour of each puzzle section heading.
 const SECTION_CLRS: [style::Color; SECTION_COUNT] = [
     style::Color::DarkGreen,
-    style::Color::Yellow,
+    style::Color::Red,
     style::Color::Grey,
+    style::Color::Blue,
 ];
 
 /// Exit code for playing the game.

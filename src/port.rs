@@ -215,6 +215,8 @@ pub enum Op {
     And,
     /// Bitwise xor.
     Xor,
+    /// Mixes real colours; returns a | b if they are both not black, otherwise black.
+    StrictOr,
 }
 
 impl Op {
@@ -224,6 +226,13 @@ impl Op {
             Self::Or => lhs | rhs,
             Self::And => lhs & rhs,
             Self::Xor => lhs ^ rhs,
+            Self::StrictOr => {
+                if lhs != 0 && rhs != 0 {
+                    lhs | rhs
+                } else {
+                    0
+                }
+            }
         }
     }
 }
@@ -236,6 +245,7 @@ impl TryFrom<char> for Op {
             '|' => Self::Or,
             '&' => Self::And,
             '^' => Self::Xor,
+            '$' => Self::StrictOr,
             _ => return Err(ExprParseErr::InvalidOp),
         })
     }

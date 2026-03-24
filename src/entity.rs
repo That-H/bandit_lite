@@ -24,8 +24,8 @@ impl Move {
 pub enum EntType {
     /// Is the player.
     Player,
-    /// Fires a coloured laser beam in the given direction.
-    Laser(beam::Beam),
+    /// Fires a coloured laser beam.
+    Laser,
     /// Uses its inputs to potentially create an output.
     Obj(port::PortGrp),
     /// Takes an input of the given colour to any port. This activates all surrounding
@@ -65,7 +65,7 @@ impl Ent {
         let bm = beam::Beam::new(clr, dir);
         Self {
             ch: DIAG_ARROWS[beam::port_num(-dir)].with(clr.into()),
-            tp: EntType::Laser(bm.clone()),
+            tp: EntType::Laser,
             handlers: vec![
                 ActHandler::new(ActSource::LaserTime, ActEffect::Laser(bm)),
             ],
@@ -137,7 +137,6 @@ impl Ent {
     /// Rotate this entity 90 degrees clockwise.
     pub fn rotate_90(&mut self) {
         match &mut self.tp {
-            EntType::Laser(bm) => bm.dir.rotate_90_cw_ip(),
             EntType::Obj(pgrp) => pgrp.rotate_90(),
             _ => (),
         }
@@ -235,7 +234,7 @@ impl bn::Entity for Ent {
             match self.tp {
                 EntType::Player => 10,
                 EntType::Obj(_) => 0,
-                EntType::Laser(_) => 0,
+                EntType::Laser => 0,
                 EntType::Goal(_) => 0,
                 EntType::Other => 0,
             }
