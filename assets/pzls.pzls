@@ -63,6 +63,17 @@ w#w.w.r→w.w/w.w#
 w#w.w.w.w.w.w.w#
 w#w#w#w#w#w#w#w#
 
+Tripwire
+w#w#w#w#w#w#w#w#w#
+w#w#w.w.w.w#w█g!w#
+w#r→w.w.w.w.w.ROw#
+w#w#w#w▒w#w.w.w▒w#
+w#w.w.w.w#w#w█w▒w#
+w#w.w.w\w.w◻w.w.w#
+w#w#w.w\w.w/w.w#w#
+w#w#w#w.w@w.w#w#w#
+w#w#w#w#w#w#w#w#w#
+
 Sacrifice
 w#w#w#w#w#w#w#w#w#w#w#w#w#
 w#w.w.w.w.w.w#w#w.w.w.g!w#
@@ -84,6 +95,20 @@ w#w#w#w#r⸬r⸬w#w#w#w#
 w#w#w.w.w.w/w.w.w.w#
 w#w#w#w#w.w.w.w.w.w#
 w#w#w#w#w#w#w#w#w#w#
+
+Inefficiency
+w#w#w#w#w#w#w#w#w#w#w#w#
+w#w#w#w.w.w#w.w█w█w.g!w#
+w#w#w.w.w.w.gOw█w#w#w#w#
+w#w.w.w.w.w.W┤w.w.w.w.w#
+w#w.w.g→w.w█w.r↓w.w.w.w#
+w#w.w.w#w#w#w◻w.w.w/w.w#
+w#w.w.r⸬w.w⸬w.w.w.w.w.w#
+w#w.w.w#w.w.w.w.w.w.w.w#
+w#w#w#w#r⸬r⸬w█w#w#w#w#w#
+w#w.r→w.w/w◻w.w.w.w├w.w#
+w#w@w.w.w.r⸬w.w.w.w.w.w#
+w#w#w#w#w#w#w#w#w#w#w#w#
 
 Mix
 w#w#w#w#w#w#w#w#w#w#
@@ -125,12 +150,12 @@ Convergence
 w#w#w#w#w#w#w#w#w#w#w#w#
 w#w@w.w.w◻w█w.w.w.w#g!w#
 w#w.w/w.w.w█b←w.w.wOw█w#
-w#w.w.w.w.w#W▒W▒w#w.w.w#
-w#w.w.w.w.w.w.w.w.w.w.w#
-w#w.w.w◻w.w.w.w.w.w.w.w#
-w#w#w#w█w#w#w█w█w#w#w#w#
-w#w.w.w.w.w.w█w◻w.w.w.w#
-w#w.w.w.w.w.w#w.g↑w.w.w#
+w#w#w.w.w.w#w.w.w█w.w.w#
+w#w#w.w.w.r⸬w.w.r⸬w.w.w#
+w#w.w.w█w█w#w#r⸬w#w.w.w#
+w#w.w.w◻w.w.w.w.w#r⸬w#w#
+w#w#w#r⸬r⸬w.w.w.w#w.w.w#
+w#w.w.w.w.w#w.w.g↑w.w.w#
 w#w.r↑w/w.w.w.w.w.w┼w.w#
 w#w.w.w.w.w.w#w.w.w.w.w#
 w#w#w#w#w#w#w#w#w#w#w#w#
@@ -141,7 +166,7 @@ w#w@w#w.w.w.r⸬w.w.w#
 w#b→w#w.w.w.w█w─w.w#
 w#w.w.w<w.w.W▒BOw#w#
 w#w.w.w.w.w#w.w█g!w#
-w#w.w.w.w.w.w#w█w#w#
+w#w.w.w.w.W▒w#w█w#w#
 w#w.w.w.w.r⸬BOw.w.w#
 w#w.w.w.r⸬w.w.w.w.w#
 w#w#w#w#w.w.w.w.w.w#
@@ -149,7 +174,7 @@ w#w#w#w#w#w#w#w#w#w#
 
 Round The Post
 w#w#w#w#w#w#w#w#w#w#w#w#
-w#w.w.w.w#g!w#w#w#w.w.w#
+w#w.w.r⸬w#g!w#w#w#w.w.w#
 w#w.w.w.w#w█w.w#w.b↖w.w#
 w#w.w.w⅄w#w.w.w#w.w.b↖w#
 w#w#w#w⸬w#w#w.w#w#r⸬r⸬w#
@@ -174,4 +199,20 @@ w#W▒g!W▒w.w.w#w.w.w.w.w#
 w#W▒w█W▒W▒W▒W▒W▒W▒w█W▒w#
 w#bOw.w.w.w.w.w.w.w.bOw#
 w#w#w#w#w#w#w#w#w#w#w#w#
+
+Keys
+w#w#w#w#w#w#w#w#w#w#w#w#w#w#
+w#w.w.w#w.w.w.w.w#w.w.w.w.w#
+w#w.g!w#w.w.b↓w.w█w.w.w╨w.w#
+w#w█w█w#w.b↙w.r⸬r⸬BOw.w.w.w#
+w#BOw.w#w.w◻w#w.w.w⸬w.w.w.w#
+w#w.w.w#w█w█w#w─w.w#w.w╡w.w#
+w#w.w#w.w.w.w.w.w.w.w#w.w.w#
+w#w.w.w#w.w.w.w@w.w.w.w#w.w#
+w#w.w#W▒w.w>w.w.w.w.w.w#w.w#
+w#w.w.w#w.w.w.w#w.w.w.w#r⸬w#
+w#w.w#w.w#w#w#w.w#w.w.w.w.w#
+w#w⸬w.w.w.w.w.w.w█w.w.w.w.w#
+w#bOw.w.w.w.w.w.w.BOw.w.w.w#
+w#w#w#w#w#w#w#w#w#w#w#w#w#w#
 
