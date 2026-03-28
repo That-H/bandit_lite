@@ -42,6 +42,7 @@ const SECTION_CLRS: [style::Color; SECTION_COUNT] = [
     style::Color::Red,
     style::Color::Grey,
     style::Color::Blue,
+    style::Color::Yellow,
 ];
 
 /// Exit code for playing the game.

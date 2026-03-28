@@ -14,9 +14,10 @@ pub const SECTION_SIZES: [usize; SECTION_COUNT] = [
     3,
     5,
     6,
+    4,
 ];
 /// Number of sections.
-pub const SECTION_COUNT: usize = 4;
+pub const SECTION_COUNT: usize = 5;
 /// Minimum completion to be able to see the section after the current one.
 pub const MIN_COMP: f64 = 0.7;
 
