@@ -12,7 +12,7 @@ pub const PL_DEFAULT_POS: Point = Point::new(-69, -420);
 pub const SECTION_SIZES: [usize; SECTION_COUNT] = [
     0,
     3,
-    5,
+    6,
     6,
     4,
 ];
