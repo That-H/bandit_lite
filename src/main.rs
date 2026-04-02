@@ -212,14 +212,10 @@ fn main() {
             &pack.pzls[pzl_idx]
         };
         let mut map = loader::puzzles::start_puzzle(pzl);
+        display::display_all(&map, &mut main_cont, unsafe { PLAYER }, &pzl.name);
 
         'game: loop {
             clear_events();
-
-            // Display the game window.
-            end_frame(&mut map);
-            start_frame(&mut map);
-            display::display_all(&map, &mut main_cont, unsafe { PLAYER }, &pzl.name);
 
             while let event::Event::Key(ke) = event::read().expect("what") {
                 if ke.is_press() {
@@ -291,10 +287,10 @@ fn main() {
                             drop(write);
                             map = start_puzzle(pzl);
                             for mv in mvs {
-                                end_frame(&mut map);
-                                start_frame(&mut map);
                                 unsafe { DIR = mv.0 }
                                 mk_move(&mut map);
+                                end_frame(&mut map);
+                                start_frame(&mut map);
                             }
                             display::display_all(&map, &mut main_cont, unsafe { PLAYER }, &pzl.name);
                             continue 'game;
@@ -308,6 +304,11 @@ fn main() {
             }
 
             mk_move(&mut map);
+
+            // Display the game window.
+            end_frame(&mut map);
+            start_frame(&mut map);
+            display::display_all(&map, &mut main_cont, unsafe { PLAYER }, &pzl.name);
 
             unsafe {
                 // Only true at this point when the puzzle is won, so record this.
