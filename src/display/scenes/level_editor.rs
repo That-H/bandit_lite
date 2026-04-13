@@ -27,7 +27,7 @@ pub struct LevelEditor<'a> {
 impl<'a> LevelEditor<'a> {
     /// Create a new level editor.
     pub fn new(objs: &'a ObjList, data: &'a mut bn::Map<Ent>) -> Self {
-        let editor = Self {
+        Self {
             objs,
             cursor: Point::new(1, 1),
             data,
@@ -35,8 +35,7 @@ impl<'a> LevelEditor<'a> {
             cur_rot: 0,
             just_deleted: false,
             pl_pos: None,
-        };
-        editor
+        }
     }
 
     /// Change the size of this level editor. 
@@ -55,13 +54,13 @@ impl<'a> LevelEditor<'a> {
                 let p = Point::new(x as i32, y as i32);
 
                 let mut ch = if let Some(e) = self.data.get_ent(p) {
-                    let mut ch = e.ch.clone();
+                    let mut ch = e.ch;
                     if !e.movable {
                         ch = ch.on(IMMOVABLE_CLR);
                     }
                     ch
                 } else if let Some(t) = self.data.get_map(p) {
-                    t.ch.clone()
+                    t.ch
                 } else {
                     ' '.stylize()
                 };
@@ -108,12 +107,10 @@ impl<'a> LevelEditor<'a> {
             if self.cur_rot == len {
                 self.cur_rot = 0;
             }
+        } else if self.cur_rot == 0 {
+            self.cur_rot = len - 1;
         } else {
-            if self.cur_rot == 0 {
-                self.cur_rot = len - 1;
-            } else {
-                self.cur_rot -= 1;
-            }
+            self.cur_rot -= 1;
         }
 
     }

@@ -22,7 +22,7 @@ pub fn add_list<I: IntoIterator<Item=String>>(
 
     for (n, name) in names.into_iter().enumerate() {
         let button = basic_button()
-            .set_txt(format!("{}", name))
+            .set_txt(name)
             .set_events(vec![
                 ui::Event::Broadcast(String::from("clr")),
                 ui::Event::Exit(n as u32 + 2000),

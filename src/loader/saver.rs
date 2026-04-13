@@ -67,7 +67,7 @@ pub fn write_pzls(pack: &puzzles::PuzzlePack) -> Result<(), puzzles::PzlIOErr> {
     let path = if is_secret(&pack.name) {
         loader::get_assets_path().join(loader::PZLS)
     } else {
-        get_save_path().join(PACK_SAVE_DIR).join(&format!("{:x}.pzls", u128::from_be_bytes(*md5::compute(&pack.name))))
+        get_save_path().join(PACK_SAVE_DIR).join(format!("{:x}.pzls", u128::from_be_bytes(*md5::compute(&pack.name))))
     };
 
     let mut data = String::new();
@@ -105,7 +105,7 @@ fn get_pzl_path() -> std::path::PathBuf {
 
 /// Check if a string is the super secret string.
 pub fn is_secret(string: &str) -> bool {
-    let hash = u128::from_be_bytes(*md5::compute(&string));
+    let hash = u128::from_be_bytes(*md5::compute(string));
 
     hash == SUPER_SECRET_NAME
 }
@@ -114,7 +114,7 @@ pub fn is_secret(string: &str) -> bool {
 /// the standard puzzles.
 pub fn delete_pack(name: String) -> Result<(), puzzles::PzlIOErr> {
     let name = u128::from_be_bytes(*md5::compute(&name));
-    let path = get_save_path().join(PACK_SAVE_DIR).join(&format!("{:x}.pzls", name));
+    let path = get_save_path().join(PACK_SAVE_DIR).join(format!("{:x}.pzls", name));
 
     fs::remove_file(path)?;
     Ok(())

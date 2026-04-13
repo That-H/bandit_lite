@@ -15,7 +15,7 @@ pub fn choose_pack(packs: &mut Vec<puzzles::PuzzlePack>, std_pzls: &puzzles::Puz
 
     // See which pack we're using.
     let mut pack_sel = ui::UiContainer::new();
-    pack_sel.add_scene(scenes::pack_sel(&packs));
+    pack_sel.add_scene(scenes::pack_sel(packs));
 
     // See what the user wants to do.
     let mut decision = ui::UiContainer::new();
@@ -139,14 +139,14 @@ pub fn edit_puzzle(
     loop {
         editor.draw(&mut cont.windows[0], true);
         cont.refresh();
-        display::print_win(&cont);
+        display::print_win(cont);
         while let event::Event::Key(ke) = event::read().expect("what") {
             if ke.is_press() {
                 match editor.handle_key(ke) {
                     EditEvent::PickObj => {
                         editor.draw(&mut cont.windows[0], false);
                         cont.refresh();
-                        display::print_win(&cont);
+                        display::print_win(cont);
                         let new_idx = ui.run() as usize;
                         editor.cur_idx = new_idx;
                         break;
@@ -209,7 +209,7 @@ pub fn choose_puzzle(
 
     // See which puzzle we're using.
     let mut puzzle_sel = ui::UiContainer::new();
-    puzzle_sel.add_scene(scenes::puzzle_select(&pack, &completion, sectioning, editing));
+    puzzle_sel.add_scene(scenes::puzzle_select(pack, completion, sectioning, editing));
 
     // See what the user wants to do with this.
     let mut decision = ui::UiContainer::new();
@@ -227,23 +227,19 @@ pub fn choose_puzzle(
         match puzzle_sel.run() {
             scenes::NEW_PUZZLE if editing => {
                 let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
-                loop {
-                    if let Some(name) = get_name() {
-                        let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
-                        if let Some((wid, hgt)) = get_size() {
-                            let mut pzl = puzzles::Puzzle::new(name);
-                            pzl.data.wid = wid as usize;
-                            pzl.data.hgt = hgt as usize;
-                            level_editor::outline(&mut pzl.data);
-                            pack.pzls.push(pzl); 
-                            puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
-                            break;
-                        } else {
-                            let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
-                            continue;
-                        }
-                    } else {
+                while let Some(name) = get_name() {
+                    let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                    if let Some((wid, hgt)) = get_size() {
+                        let mut pzl = puzzles::Puzzle::new(name);
+                        pzl.data.wid = wid as usize;
+                        pzl.data.hgt = hgt as usize;
+                        level_editor::outline(&mut pzl.data);
+                        pack.pzls.push(pzl); 
+                        puzzle_sel.scenes[0] = scenes::puzzle_select(pack, completion, sectioning, editing);
                         break;
+                    } else {
+                        let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
+                        continue;
                     }
                 }
                 continue
@@ -264,21 +260,21 @@ pub fn choose_puzzle(
                         let _ = execute!(handle, terminal::Clear(terminal::ClearType::All));
                         if let Some(name) = get_name() {
                             pack.pzls[idx].name = name;
-                            puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
+                            puzzle_sel.scenes[0] = scenes::puzzle_select(pack, completion, sectioning, editing);
                         }
                     }
                     MODIFY => break idx,
                     MOVE_UP => {
                         if idx != 0 {
                             pack.pzls.swap(idx, idx - 1);
-                            puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
+                            puzzle_sel.scenes[0] = scenes::puzzle_select(pack, completion, sectioning, editing);
                         }
                     }
                     MOVE_DOWN => {
                         let b = idx + 1;
                         if b != pack.pzls.len() {
                             pack.pzls.swap(idx, b);
-                            puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
+                            puzzle_sel.scenes[0] = scenes::puzzle_select(pack, completion, sectioning, editing);
                         }
                     }
                     DEL => {
@@ -287,7 +283,7 @@ pub fn choose_puzzle(
                         match decision.run() {
                             CONFIRM => {
                                 pack.pzls.remove(idx);
-                                puzzle_sel.scenes[0] = scenes::puzzle_select(&pack, &completion, sectioning, editing);
+                                puzzle_sel.scenes[0] = scenes::puzzle_select(pack, completion, sectioning, editing);
                             },
                             CANCEL => (),
                             _ => unreachable!(),

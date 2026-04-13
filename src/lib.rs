@@ -56,6 +56,8 @@ pub struct TileState {
     pub blocking: bool,
     /// Whether the tile in this state prevents lasers passing through it.
     pub opaque: bool,
+    /// Whether it is a bad idea for the player to walk on to this tile.
+    pub scary: bool,
 }
 
 impl TileState {
@@ -65,6 +67,15 @@ impl TileState {
             ch,
             blocking,
             opaque,
+            scary: false,
+        }
+    }
+
+    /// Make the tile state scary.
+    pub fn scary(self) -> Self {
+        Self {
+            scary: true,
+            ..self
         }
     }
 
@@ -74,6 +85,7 @@ impl TileState {
             ch: '#'.white(),
             blocking: true,
             opaque: true,
+            scary: false,
         }
     }
 
@@ -83,6 +95,7 @@ impl TileState {
             ch: '.'.white(),
             blocking: false,
             opaque: false,
+            scary: false,
         }
     }
 }
@@ -93,13 +106,14 @@ impl Default for TileState {
             blocking: false,
             ch: ' '.white(),
             opaque: false,
+            scary: false,
         }
     }
 }
 
 
 /// A single tile that may or may not block movement.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct Tile {
     /// State when the tile is not being activated.
     inact: TileState,
@@ -180,6 +194,30 @@ impl Tile {
             inact: TileState::wall(),
             ..Default::default()
         }
+    }
+
+    /// Create a water tile.
+    pub fn water() -> Self {
+        Self::from(
+            TileState::new('~'.blue(), false, false)
+                // Water is very scary.
+                .scary()
+        )
+            .with_handlers(vec![
+                ActHandler::new(ActSource::WalkOn, ActEffect::Murder.chain(ActEffect::Transform(Self::floor())))
+            ])
+    }
+
+    /// Create a standard weighted button (can only be pressed by objects, not the player).
+    pub fn wgtd_button() -> Self {
+        Self::new(BUTTON_CH.dark_yellow(), false, false)
+            .join(TileState::new(BUTTON_CH.white(), false, false))
+            .with_handlers(
+                vec![
+                    ActHandler::new(ActSource::WalkOn, ActEffect::Prop),
+                    ActHandler::new(ActSource::StayOn, ActEffect::Prop),
+                ]
+            )
     }
 
     /// Create a standard button.
@@ -276,7 +314,10 @@ impl Tile {
 
 impl From<TileState> for Tile {
     fn from(value: TileState) -> Self {
-        Self::new(value.ch, value.blocking, value.opaque)
+        Self {
+            inact: value,
+            ..Default::default()
+        }
     }
 }
 
@@ -290,7 +331,7 @@ impl bn::Tile for Tile {
     type Repr = StyleCh;
 
     fn repr(&self) -> Self::Repr {
-        self.ch.clone()
+        self.ch
     }
 }
 
@@ -299,17 +340,6 @@ impl ops::Deref for Tile {
 
     fn deref(&self) -> &Self::Target {
         self.cur_state()
-    }
-}
-
-impl Default for Tile {
-    fn default() -> Self {
-        Self {
-            active: false,
-            inact: TileState::default(),
-            act: None,
-            handlers: Vec::new(),
-        }
     }
 }
 
@@ -415,10 +445,8 @@ pub fn start_frame(map: &mut bn::Map<Ent>) {
     for y in (0..map.hgt).rev() {
         for x in 0..=map.wid {
             let p = Point::new(x as i32, y as i32);
-            if let Some(t) = map.get_map(p) {
-                if map.get_ent(p).is_some() {
-                    comms.queue_many(t.activate(map, ActSource::StayOn, p));
-                }
+            if let Some(t) = map.get_map(p) && map.get_ent(p).is_some() {
+                comms.queue_many(t.activate(map, ActSource::StayOn, p));
             }
         }
     }

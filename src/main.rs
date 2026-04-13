@@ -2,8 +2,7 @@
 
 use bandit_lite::{display::display_all, loader::puzzles::{start_puzzle, ts::TileSet}, *};
 use loader::puzzles::ts::BanditObj;
-use crossterm::{execute, terminal, event, style, cursor};
-use style::Stylize;
+use crossterm::{execute, terminal, event, cursor};
 use std::{time, io};
 use display::scenes;
 
@@ -34,8 +33,9 @@ fn main() {
     // Add the exit.
     ordered_objs.insert(1, vec![BanditObj::from(Tile::exit())]);
 
-    // Make a button.
+    // Make buttons.
     ordered_objs.add_tile(Tile::button());
+    ordered_objs.add_tile(Tile::wgtd_button());
     // Add both normal doors and the one way version.
     ordered_objs.add_tile(Tile::door(true));
     ordered_objs.add_tile(Tile::door(false));
@@ -61,10 +61,11 @@ fn main() {
         ordered_objs.add_entities(lsrs2);
     }
     
-    // Add tiles to the object list.
-    let default_tile = Tile::new('.'.white(), false, false);
+    // Add floors and walls to the list.
+    let default_tile = Tile::floor();
     ordered_objs.add_tile(default_tile.clone());
-    ordered_objs.add_tile(Tile::new('#'.white(), true, true));
+    ordered_objs.add_tile(Tile::water());
+    ordered_objs.add_tile(Tile::wall());
 
     let mut ts = TileSet::new();
     

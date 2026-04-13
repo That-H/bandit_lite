@@ -140,6 +140,12 @@ impl ops::DerefMut for ObjList {
     }
 }
 
+impl Default for ObjList {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 /// Return a buffered reader over the lines of a file.
 pub fn read_lines<P: AsRef<std::path::Path>>(
     path: P,

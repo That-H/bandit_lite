@@ -110,7 +110,7 @@ impl Ent {
             ch,
             tp: EntType::Obj(
                 port::PortGrp::from_iter(
-                    exprs.into_iter()
+                    exprs
                 )
             ),
             ..Default::default()
@@ -119,15 +119,21 @@ impl Ent {
 
     /// True if this entity is the player entity.
     pub fn is_player(&self) -> bool {
-        match self.tp {
-            EntType::Player => true,
-            _ => false,
+        matches!(self.tp, EntType::Player)
+    }
+
+    /// True if non player objects can move on to the given optional tile (false if it is None).
+    pub fn obj_walkable(tl: &Option<&Tile>) -> bool {
+        if let Some(t) = tl && !t.blocking {
+            true
+        } else {
+            false
         }
     }
 
     /// True if the player can walk on the given optional tile (false if it is None).
     pub fn walkable(tl: &Option<&Tile>) -> bool {
-        if let Some(t) = tl && !t.blocking {
+        if let Some(t) = tl && !t.blocking && !t.scary {
             true
         } else {
             false
@@ -136,9 +142,8 @@ impl Ent {
 
     /// Rotate this entity 90 degrees clockwise.
     pub fn rotate_90(&mut self) {
-        match &mut self.tp {
-            EntType::Obj(pgrp) => pgrp.rotate_90(),
-            _ => (),
+        if let EntType::Obj(pgrp) = &mut self.tp {
+            pgrp.rotate_90()
         }
     }
 
@@ -146,9 +151,7 @@ impl Ent {
     pub fn outputs(&self, inpts: &port::Clrs) -> port::Clrs {
         match &self.tp {
             EntType::Obj(ports) => {
-                let outs = ports.determine(inpts);
-
-                outs
+                ports.determine(inpts)
             }
             _ => Default::default(),
         }
@@ -184,7 +187,7 @@ impl bn::Entity for Ent {
 
     fn repr(&self) -> <<Self as bandit::Entity>::Tile as bandit::Tile>::Repr {
         if self.movable {
-            self.ch.clone()
+            self.ch
         } else {
             self.ch.on(IMMOVABLE_CLR)
         }
@@ -205,7 +208,7 @@ impl bn::Entity for Ent {
                         let nx2 = nx + DIR;
                         // Possible if the location we would push to contains no entity and is
                         // walkable.
-                        if Ent::walkable(&cmd.get_map(nx2)) && cmd.get_ent(nx2).is_none() && e.movable {
+                        if Ent::obj_walkable(&cmd.get_map(nx2)) && cmd.get_ent(nx2).is_none() && e.movable {
                             cmd.queue(bn::Cmd::new_on(nx).move_to(nx2));
                             if let Some(t) = cmd.get_map(nx2) {
                                 cmd.queue_many(t.activate(cmd, ActSource::WalkOn, nx2));

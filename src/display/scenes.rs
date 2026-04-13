@@ -191,7 +191,7 @@ pub fn puzzle_select(
     let mut section_size = 0;
     let mut pos = Point::new(1, 2);
     let mut screen_pos = pos + Point::new(1, 3);
-    let comps = sect_comps(&pzls, &completion);
+    let comps = sect_comps(pzls, completion);
 
     for (n, pzl) in pzls.pzls.iter().enumerate() {
         let this_sect = SECTION_SIZES.get((last_sect + 1) as usize).copied().unwrap_or(999);

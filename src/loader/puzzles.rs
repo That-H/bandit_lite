@@ -12,9 +12,9 @@ pub const PL_DEFAULT_POS: Point = Point::new(-69, -420);
 pub const SECTION_SIZES: [usize; SECTION_COUNT] = [
     0,
     3,
+    8,
     6,
-    6,
-    4,
+    5,
 ];
 /// Number of sections.
 pub const SECTION_COUNT: usize = 5;
@@ -105,7 +105,7 @@ impl Puzzle {
 
     /// Update the identifier of this puzzle.
     pub fn update(&mut self) {
-        self.id = u128::from_be_bytes(*md5::compute(&self.file_repr()));
+        self.id = u128::from_be_bytes(*md5::compute(self.file_repr()));
     }
 }
 

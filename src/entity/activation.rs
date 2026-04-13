@@ -92,7 +92,7 @@ impl Cond {
 }
 
 /// A possible effect of being activated.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub enum ActEffect {
     /// Propagate this activation to surrounding tiles/entities.
     Prop,
@@ -104,6 +104,10 @@ pub enum ActEffect {
     Reset,
     /// Win the puzzle.
     Win,
+    /// Kill the entity at this location.
+    Murder,
+    /// Transform the tile at this location into the given one.
+    Transform(Tile),
     /// Does nothing.
     Null,
     /// Conditionally does something.
@@ -156,6 +160,12 @@ impl ActEffect {
                     SHOULD_WIN = true;
                 }
             }
+            ActEffect::Murder => {
+                cmds.push(bn::Cmd::new_on(pos).delete_entity());
+            }
+            ActEffect::Transform(t) => {
+                cmds.push(bn::Cmd::new_on(pos).create_tile(t.clone()));
+            }
             ActEffect::Reset => {
                 cmds.push(bn::Cmd::new_on(pos).modify_entity(Box::new(|e: &mut Ent| {
                     e.prev_active = e.active;
@@ -185,7 +195,7 @@ impl ActEffect {
 }
 
 /// Handles an activation from a source.
-#[derive(Clone, PartialEq, Eq, Debug)]
+#[derive(Clone, PartialEq, Debug)]
 pub struct ActHandler {
     src: ActSource,
     ef: ActEffect,
