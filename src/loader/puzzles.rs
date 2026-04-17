@@ -13,7 +13,7 @@ pub const SECTION_SIZES: [usize; SECTION_COUNT] = [
     0,
     3,
     8,
-    6,
+    7,
     5,
 ];
 /// Number of sections.
